@@ -30,8 +30,7 @@ const notifier = require('node-notifier'); // temp
 
 const Tray = electron.Tray;
 const iconPath = path.join(__dirname,'images/ePrompto_png.png');
-const versionItam = '4.0.76';
-
+const versionItam = '4.0.81';
 
 const { Client } = require('ssh2');
 const chokidar = require('chokidar');
@@ -42,11 +41,10 @@ global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
 //global.root_url = 'http://localhost/business_eprompto/itam_backend_end_user';
 
 // global.root_url = 'https://business.eprompto.com/itam_backend_end_user';
-// global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
+ //global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
 
 // global.root_url = 'http://localhost/end_user_backend';
 // global.root_url = 'http://localhost/eprompto_master';
-
 
 let reqPath = path.join(app.getAppPath(), '../');
 const detail =  reqPath+"syskey.txt";
@@ -74,7 +72,6 @@ let regWindow;
 let forgotWindow;
 let ticketWindow;
 let quickUtilWindow;
-
 
 app.on('ready',function(){
 
@@ -185,7 +182,6 @@ app.on('ready',function(){
 app.commandLine.appendSwitch('ignore-certificate-errors') // COMMENT THIS OUT
 app.commandLine.appendSwitch('disable-http2');
 autoUpdater.requestHeaders = {'Cache-Control' : 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'};
-
 
 function checkSecuritySelected(system_key){
   console.log("Inside checkSecuritySelected");
@@ -664,6 +660,7 @@ var getEventIds = function(logname,asset_id,callback) {
 // // ---------------------------------User Behavior Ends here : ---------------------------------------------------------------- 
 
 function setGlobalVariable(){
+  console.log('In setGlobalVariable');
   tray.destroy();
   tray = new Tray(iconPath);
   display = electron.screen.getPrimaryDisplay();
@@ -685,7 +682,7 @@ function setGlobalVariable(){
         } else {
           console.log("CONNECTED");
           global.NetworkStatus = 'Yes';
-
+          console.log('Before openFunc');
           var body = JSON.stringify({ "funcType": 'openFunc', "sys_key": cookies[0].name }); 
           const request = net.request({ 
               method: 'POST', 
@@ -707,10 +704,14 @@ function setGlobalVariable(){
                   global.userName = obj.loginPass[0];
                   global.loginid = obj.loginPass[1];
                   global.sysKey = cookies[0].name;
-                  updateAsset(asset_id);
-
-                 // SetCron(cookies[0].name);
+                 
+                //updateAsset(asset_id);
+                  softwareDetails();
+                  hardwareDetails();
+                // ipcRenderer.send('check_software_changes'); 
+                // SetCron(cookies[0].name);
                   addAssetUtilisation(asset_id,client_id);
+                 
                 }
               })
               response.on('end', () => {})
@@ -833,7 +834,6 @@ function setGlobalVariable(){
       console.log(error)
     })    
 }
-
 
 
 function updateAssetUtilisation(slot){
@@ -1271,6 +1271,7 @@ function addAssetUtilisation(asset_id,client_id){
 }
 
 function updateAsset(asset_id){
+  console.log("In updateAsset");
   global.assetID = asset_id;
   system_ip = ip.address();
 
@@ -1409,10 +1410,12 @@ function updateAsset(asset_id){
         device_name = os.hostname();
         cpuCount = os.cpus().length;
         itam_version = app.getVersion();
-      serialNumber(function (err, value) {
+            
+        
+       serialNumber(function (err, value) {
 
         var body = JSON.stringify({ "funcType": 'systemInfo',"asset_id": asset_id, "make" : sys_OEM,
-          "model": sys_model, "serial_num": value, "device_name": device_name, "cpu_count": cpuCount, "version": itam_version }); 
+          "model": sys_model, "serial_num": value, "device_name": device_name, "cpu_count": cpuCount, "version": itam_version}); 
         const request = net.request({ 
             method: 'POST', 
             url: root_url+'/asset.php' 
@@ -1431,6 +1434,7 @@ function updateAsset(asset_id){
         request.end();
 
       });
+    
     });
 
     getAntivirus(function(antivirus_data){
@@ -1955,26 +1959,18 @@ ipcMain.on('form_data',function(e,form_data){
   resolution_method_id = 1;
   
 
-
-  // if(form_data['disp_type'] == 'PC' ){
-  //   if(type == '1'){
-  //     issue_type_id ="1,13,"+category;
-  //   }else if(type == '2'){
-  //     issue_type_id ="2,15,"+category;
-  //   }else if(type == '3'){
-  //     issue_type_id ="556,557,"+category;
-  //   }
-  // }
-  // else 
+  issue_type_category_id = category;
   if(form_data['disp_type'] == 'PC' ){
     if(type == '1'){
-      issue_type_category_id = category;
+      issue_type_id ="1,13,"+category;
+    
     }else if(type == '2'){
-      issue_type_category_id = category;
+      issue_type_id ="2,15,"+category;
     }else if(type == '3'){
-      issue_type_category_id = category;
+      issue_type_id ="556,557,"+category;
     }
   }
+
   else if(form_data['disp_type'] == 'WiFi'){
     issue_type_id ="1,13,47,179,"+category;
   }
@@ -2213,13 +2209,18 @@ ipcMain.on('login_data',function(e,data){
     }
     hdd_total = hdd_total/(1024*1024*1024);
     serialNumber(function (err, value) {
-    console.log(sys_OEM);console.log(sys_model);console.log(value);console.log(data.system_key); console.log(getmac.default());
+   // console.log(sys_OEM);console.log(sys_model);console.log(value);console.log(data.system_key); console.log(getmac.default());
     mac_address = getmac.default();
     console.log(mac_address);
+    si.system()
+    .then(systemInfo => {
+      const deviceId = systemInfo.uuid;
+      
+    console.log('Device ID:', deviceId);
     var body = JSON.stringify({ "funcType": 'loginFunc', "userID": data.userId,
       "sys_key": data.system_key, "dev_type": data.device_type, "ram" : RAM, "hdd_capacity" : hdd_total,
       "machineID" : machineId, "title": data.title, "user_fname": data.usr_first_name, "user_lname": data.usr_last_name,
-      "user_email": data.usr_email,"user_mob_no": data.usr_contact,"token": data.token,"client_no": data.clientno,"ip": system_ip,"make":sys_OEM, "model": sys_model, "serial_num": value, "mac_address": mac_address }); 
+      "user_email": data.usr_email,"user_mob_no": data.usr_contact,"token": data.token,"client_no": data.clientno,"ip": system_ip,"make":sys_OEM, "model": sys_model, "serial_num": value, "mac_address": mac_address, "deviceId": deviceId }); 
     const request = net.request({ 
         method: 'POST', 
         url: root_url+'/login.php' 
@@ -2244,7 +2245,9 @@ ipcMain.on('login_data',function(e,data){
             global.userName = obj.loginPass[0];
             global.loginid = obj.loginPass[1];
             asset_id = obj.asset_maxid;
-            updateAsset(asset_id);
+           // updateAsset(asset_id);
+            softwareDetails();
+            hardwareDetails();
             //addAssetUtilisation(output.asset_maxid,output.result[0]);
             global.deviceID = data.device_type;
    
@@ -2293,7 +2296,7 @@ ipcMain.on('login_data',function(e,data){
               slashes: true
             }));
             child.once('ready-to-show', () => {
-              child.show()
+              child.show();
             });
 
               
@@ -2335,6 +2338,8 @@ ipcMain.on('login_data',function(e,data){
     request.write(body, 'utf-8'); 
     request.end();
   });
+})
+
 });
 
 
@@ -2566,7 +2571,9 @@ ipcMain.on('member_registration',function(e,form_data){
             global.NetworkStatus = 'Yes';
             global.assetID = asset_id;
             global.sysKey = obj.sysKey;
-            updateAsset(asset_id);
+            //updateAsset(asset_id);
+            softwareDetails();
+            hardwareDetails();
             //addAssetUtilisation(output.asset_maxid,output.result[0]);
             const cookie = {url: 'http://www.eprompto.com', name: obj.sysKey , value: obj.sysKey, expirationDate:9999999999 }
           session.defaultSession.cookies.set(cookie, (error) => {
@@ -2959,6 +2966,7 @@ ipcMain.on('update_is_itam_policy',function(e,form_data){
       response.on('data', (chunk) => {
         //console.log(`${chunk}`);
         var obj = JSON.parse(chunk);
+        console.log(obj);
         if(obj.status == 'invalid'){
           log.info('Error occured on updating itam policy');
         }
@@ -3006,7 +3014,7 @@ autoUpdater.on('update-available', () => {
 autoUpdater.on('update-downloaded', () => {
   notifier.notify(
     {
-      title: 'ITAM Version 4.0.76 Released. Click to Restart Application.', //put version number of future release. not current.
+      title: 'ITAM Version 4.0.82 Released. Click to Restart Application.', //put version number of future release. not current.
       message: 'ITAM will be Updated on Application Restart.',
       icon: path.join(app.getAppPath(), '/images/ePrompto.ico'),
       sound: true,
@@ -4244,67 +4252,81 @@ function readPMCSV(CSV_name,output_res=[]){
 
 ipcMain.on('Patch_Management_Main',function(e,form_data,pm_type) {
   logEverywhere('In PatchMM');
+  
     require('dns').resolve('www.google.com', function(err) {
       if (err) {
           console.log("No connection");
       } else {
         session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
         .then((cookies) => {
-        if(cookies.length > 0){
-          var body = JSON.stringify({ "funcType": 'getPatchManagementList',"sys_key": cookies[0].name,"maintenance_type":pm_type }); 
-          const request = net.request({ 
-              method: 'POST', 
-              url: root_url+'/patch_management.php' 
-          }); console.log(cookies[0].name);
-        request.on('response', (response) => {
-            
-            response.on('data', (chunk) => {
-              console.log(`${chunk}`);         // comment out
-              var obj = JSON.parse(chunk);
-              if(obj.status == 'valid'){              
+       
+          si.system()
+          .then(systemInfo => {
+            const globalDeviceId = systemInfo.uuid;
+            console.log('PM Device ID:', globalDeviceId);
+          
+          
+              if(cookies.length > 0){
                 
-                const output_data = []; 
-                output_data['management_id'] = obj.result.management_id;
-                output_data['patch_management_type']   = obj.result.patch_management_type;             
-                output_data['login_user']   = obj.result.login_user;
-                       
+                var body = JSON.stringify({ "funcType": 'getPatchManagementList',"sys_key": cookies[0].name,"maintenance_type":pm_type,"system_device_id":globalDeviceId }); 
+                const request = net.request({ 
+                    method: 'POST', 
+                    url: root_url+'/patch_management.php' 
+                }); console.log(cookies[0].name);
+              request.on('response', (response) => {
+                  
+                  response.on('data', (chunk) => {
+                    console.log(`${chunk}`);         // comment out
+                    var obj = JSON.parse(chunk);
+                    if(obj.status == 'valid'){              
+                      
+                      const output_data = []; 
+                      output_data['management_id'] = obj.result.management_id;
+                      output_data['patch_management_type']   = obj.result.patch_management_type;             
+                      output_data['login_user']   = obj.result.login_user;
+                            
 
-                // To Powershell Scripts
-                if (obj.result.patch_management_type == 'Gap Analysis')
-                {                         
-                  Patch_Management_Scripts('Last Installed Windows Update', output_data);                             
-                }                                
+                      // To Powershell Scripts
+                      if (obj.result.patch_management_type == 'Gap Analysis')
+                      {                         
+                        Patch_Management_Scripts('Last Installed Windows Update', output_data);                             
+                      }                                
 
-                if (obj.result.patch_management_type == 'Gap Analysis')
-                {                            
-                  Patch_Management_Scripts('Available Pending Updates', output_data);                             
-                }                                
+                      if (obj.result.patch_management_type == 'Gap Analysis')
+                      {                            
+                        Patch_Management_Scripts('Available Pending Updates', output_data);                             
+                      }                                
 
-                if (chunk.includes('Quick Update')) // Including optional drivers updates
-                {                            
-                  Patch_Management_Scripts('Install_All_Updates_Available', output_data);                             
-                }                                
+                      if (chunk.includes('Quick Update')) // Including optional drivers updates
+                      {                            
+                        Patch_Management_Scripts('Install_All_Updates_Available', output_data);                             
+                      }                                
 
-                if (chunk.includes('Install_Specific_Updates'))
-                {                            
-                  Patch_Management_Scripts('Install_Specific_Updates', output_data);                             
-                }                                
+                      if (chunk.includes('Install_Specific_Updates'))
+                      {                            
+                        Patch_Management_Scripts('Install_Specific_Updates', output_data);                             
+                      }                                
 
-                if (chunk.includes('Uninstall_Updates'))
-                {                            
-                  Patch_Management_Scripts('Uninstall_Updates', output_data);                             
-                }                                
-              }
-            })
-            response.on('end', () => {});
-        })
-        request.on('error', (error) => { 
-            console.log(`ERROR: ${(error)}`);
-        })
-        request.setHeader('Content-Type', 'application/json'); 
-        request.write(body, 'utf-8'); 
-        request.end();
-      }
+                      if (chunk.includes('Uninstall_Updates'))
+                      {                            
+                        Patch_Management_Scripts('Uninstall_Updates', output_data);                             
+                      }                                
+                    }
+                  })
+                  response.on('end', () => {});
+              })
+              request.on('error', (error) => { 
+                  console.log(`ERROR: ${(error)}`);
+              })
+              request.setHeader('Content-Type', 'application/json'); 
+              request.write(body, 'utf-8'); 
+              request.end();
+            }
+
+    });
+
+
+
     });
     };
     });
@@ -4381,163 +4403,6 @@ ipcMain.on('Patch_Management_Specific',function(e,form_data,pm_type) {
 })
 
 
-// // ------------------------------ Backup Files Starts here : ------------------------------------------------------------
-
-
-// ipcMain.on('check_backup_files_request',function(e) { 
-//   logEverywhere('In BFR');
-//   require('dns').resolve('www.google.com', function(err) {
-//    console.log('Inside Backup Call');
-//    logEverywhere('Inside Log Function');
-//     if (err) {
-//        console.log("No connection");
-//     } else {
-//       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
-//       .then((cookies) => {
-//       if(cookies.length > 0){
-//         console.log("Inside Backup Cookies");
-//       //  SetCron(cookies[0].name); 
-//         //console.log(cookies[0].name);
-//         var body = JSON.stringify({ "sys_key": cookies[0].name, 'functionType' : 'get_list'}); 
-        
-//         const request = net.request({ 
-//             method: 'POST', 
-//             url: root_url+'/backup_files.php' 
-//         }); 
-//       request.on('response', (response) => {
-//          // console.log(response);
-//           response.on('data', (chunk) => {
-//         // console.log(`${chunk}`);         // comment out
-//            var obj = JSON.parse(chunk);
-//            console.log(obj);
-//             if(obj.status == 'valid'){
-//               //console.log('obj.result.exclude_extension');
-//               var bck_server_details = obj.result.backup_connect; 
-//               var file_extension = obj.result.file_extension; 
-//               var file_path = obj.result.file_path; 
-//               var login_user_id = obj.result.asset_id;
-//               var file_extension_arr = obj.result.file_extension_arr;
-//               const output_data = [];
-//               UploadFileName = obj.result.file_path;
-//               UploadFileExt  = obj.result.file_extension;
-//               UploadFileAsset  = obj.result.asset_id;
-              
-//               var destinationFolder = bck_server_details.folder_path; //server actual path where files being copied
-//               var hostName = bck_server_details.server_url; //server url where backup files needs to copy
-//               var bckUserName = bck_server_details.server_user; //server url where backup files needs to copy
-//               var bckPassword = bck_server_details.server_password; //server url where backup files needs to copy
-//              console.log(bck_server_details);
-              
-//               content = "$userName = '"+bckUserName+"'\n$password = '"+bckPassword+"'\n[SecureString]$securepassword = $password | ConvertTo-SecureString -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $securepassword";             
-//               file_extension_arr.forEach((dExt) => {
-//                 //for multiple extention screipt
-//                 content = content+"\nGet-ChildItem -Path '"+UploadFileName+"' -Filter *.'"+dExt+"' -Recurse | Set-SCPItem -ComputerName '"+hostName+"' -Credential $credential -Destination '"+destinationFolder+"' -Verbose | Out-String";             
-//               });
-//               //content = "$userName = 'eprompto_itam'\n$password = 'Cbi2t@m_U$R'\n[SecureString]$securepassword = $password | ConvertTo-SecureString -AsPlainText -Force\n$credential = New-Object System.Management.Automation.PSCredential -ArgumentList $username, $securepassword\nGet-ChildItem -Path '"+UploadFileName+"' -Filter *.'"+UploadFileExt+"' -Recurse | Set-SCPItem -ComputerName '"+hostName+"' -Credential $credential -Destination '"+destinationFolder+"' -Verbose";             
-//               const path26 = 'C:/ITAMEssential/backupfile.ps1';
-              
-              
-//               fs.writeFile(path26, content, function (err) { 
-//               if (err){
-//                 throw err;
-//               }else{
-//                 var powershellOutput = '';
-//                 var powershellStatus = '';
-//                 console.log('Backup File Script Created');
-                
-//                 child = spawn("powershell.exe",["C:\\ITAMEssential\\backupfile.ps1"]);
-//                 //console.log(child);
-//                 child.stdout.on("data",function(data){
-//                   //console.log("Powershell Data: " + data);
-//                   powershellStatus = 'Success';
-//                   powershellOutput = powershellOutput+"<br>"+data;
-//               });
-//               child.stderr.on("data",function(data){
-//                   console.log("Powershell Errors: " + data);
-//                   powershellStatus = 'Error';
-//                   powershellOutput = powershellOutput+"<br>"+data;
-//               });
-//                 child.on("exit",function(data){console.log("Powershell Upload Script finished");
-//                     console.log(powershellStatus);
-//                     console.log(powershellOutput);
-                   
-//                   //If successfuly execute ps file then update backup status
-//                   output_data["script_status"] = powershellStatus;
-//                   output_data["script_output"] = powershellOutput;
-//                   output_data["backup_id"] = obj.result.bf_id;
-//                   output_data['bf_asset_id'] = obj.result.bf_asset_id;
-//                   output_data["file_name"] = UploadFileName;
-//                   output_data["file_path"] = destinationFolder;
-//                   output_data["frequency"] = obj.result.frequency;
-//                   output_data['functionType'] = 'update_backup_status'; 
-//                   updateBackupDetails(output_data);
-
-//                   child.stdin.end(); //end input
-//               }); 
-//               } 
-//             });
-            
-           
-//            }
-              
-//           })
-//           response.on('end', () => {})
-//       })
-//       request.on('error', (error) => { 
-//           console.log(`ERROR: ${(error)}`) 
-//       })
-//       request.setHeader('Content-Type', 'application/json'); 
-//       request.write(body, 'utf-8'); 
-//       request.end();
-//     }
-//   });
-// };
-// });});
-
-
-// // for failed scripts
-// function updateBackupDetails(output_data=[]){
-//   console.log("Inside updateBackupDetails function for success scripts");
-
-//   var body = JSON.stringify({ "backup_id": output_data['backup_id'], 
-//                             "bf_asset_id": output_data['bf_asset_id'], 
-//                             "file_name": output_data['file_name'],
-//                             "file_path": output_data['file_path'],
-//                             "frequency": output_data['frequency'],
-//                             "script_status": output_data['script_status'],
-//                             "script_output": output_data['script_output'],
-//                             'functionType': 'update_backup_status'
-//                             }); 
-
-//   const request = net.request({ 
-//       method: 'POST', 
-//       url: root_url+'/backup_files.php' 
-//   }); 
-//   request.on('response', (response) => {
-//       // console.log(response);
-//       //console.log(`STATUS: ${response.statusCode}`)
-//       response.on('data', (chunk) => {
-//         console.log(`${chunk}`);   
-//         // console.log(chunk);
-//         console.log("Inside chunk");
-//       })
-//       response.on('end', () => {
-        
-//         // global.stdoutputArray = []; // Emptying array to stop previous result from getting used
-
-//       });
-//   })
-//   request.on('error', (error) => { 
-//       log.info('Error while updating Backup outputs '+`${(error)}`) 
-//   })
-//   request.setHeader('Content-Type', 'application/json'); 
-//   request.write(body, 'utf-8'); 
-//   request.end();
-
-// };
-
-// // ---------------------------------Backup Files Ends here : ---------------------------------------------------------------- 
-
 // ------------------------------ Backup Files Starts here : ------------------------------------------------------------
 const file_lists = [];
 function backupMyFiles(localPath, remotePath, conn) {  
@@ -4588,15 +4453,15 @@ function backupMyFiles(localPath, remotePath, conn) {
   
   return backupIncrementalFiles;
 }
-function deleteFile(localPath, remotePath, conn) {
-  const remoteFile = remotePath + '/' + path.basename(localPath);
-  conn.exec('rm ' + remoteFile, (err, stream) => {
-    if (err) throw err;
-    stream.on('close', () => {
-      console.log('File deleted from CentOS server');
-    });
-  });
-}
+// function deleteFile(localPath, remotePath, conn) {
+//   const remoteFile = remotePath + '/' + path.basename(localPath);
+//   conn.exec('rm ' + remoteFile, (err, stream) => {
+//     if (err) throw err;
+//     stream.on('close', () => {
+//       console.log('File deleted from CentOS server');
+//     });
+//   });
+// }
 ipcMain.on('check_backup_files_request',function(e) { 
   logEverywhere('In BFR');
   require('dns').resolve('www.google.com', function(err) {
@@ -6040,33 +5905,41 @@ function logEverywhere(s) {
       // }
    
  }
+
 ipcMain.on('get_company_logo',function(e,form_data){  
   logEverywhere('In get_company_logo');
  
  console.log(form_data);
+ si.system()
+    .then(systemInfo => {
+      const deviceId = systemInfo.uuid;
+      console.log('Device ID:', deviceId);
+    
   require('dns').resolve('www.google.com', function(err) {
     if (err) {
        console.log("No connection");
     } else {
-      serialNumber(function (err, value) {
+    
       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
       .then((cookies) => {
       
         if(cookies.length > 0){
      
-    console.log(sys_OEM);console.log(sys_model);console.log(value);
-    console.log(cookies[0].name);
-      var body = JSON.stringify({ "funcType": 'get_company_logo', "sys_key": cookies[0].name, "make":sys_OEM, "model": sys_model, "serial_num": value }); 
+       
+     logEverywhere('Inside CL1111'); console.log('Device ID:', deviceId);
+      var body = JSON.stringify({ "funcType": 'get_company_logo', "sys_key": cookies[0].name, "deviceId": deviceId }); 
           const request = net.request({ 
               method: 'POST', 
               url: root_url+'/main.php' 
           }); 
+          logEverywhere('Inside CL');
           request.on('response', (response) => {
             //console.log(`STATUS: ${response.statusCode}`)
             response.on('data', (chunk) => {
-             // console.log(`${chunk}`);
+              console.log(`${chunk}`);
               var obj = JSON.parse(chunk);
               console.log(obj);
+              logEverywhere(obj);
               if(obj.status == 'valid'){
                 e.reply('checked_company_logo', obj.result);
               }else if(obj.status == 'invalid'){
@@ -6084,8 +5957,255 @@ ipcMain.on('get_company_logo',function(e,form_data){
         }
       }).catch((error) => {
         // console.log(error)            // comment out
-      })});
+      })
     }
   });
-
 });
+});
+
+// ------------------------Check Hardware Change Code Strat Here ------------------------------------------------------------------------
+ipcMain.on('check_hardware_changes',function(e) { 
+  logEverywhere('In CHC');
+  hardwareDetails();
+ });
+
+ function hardwareDetails()
+{
+  require('dns').resolve('www.google.com', function(err) {
+    console.log('Inside Check Hardware Call');
+    logEverywhere('Inside Check Hardware Call  in log');
+     if (err) {
+        console.log("No connection");
+     } else {
+       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
+       .then((cookies) => {
+       if(cookies.length > 0){
+         console.log("Inside Check Hardware Cookies");
+         system_ip = ip.address();
+         var system_ip = ip.address();
+          RAM = (os.totalmem()/(1024*1024*1024)).toFixed(1);
+          const disks = nodeDiskInfo.getDiskInfoSync();
+          hdd_total = 0;
+          
+          for (const disk of disks) {
+              if(disk.filesystem == 'Local Fixed Disk'){
+                hdd_total = hdd_total + disk.blocks;
+              }
+          }
+          hdd_total = hdd_total/(1024*1024*1024);
+          
+           si.osInfo(function(data) {
+             os_release = data.kernel;
+               os_bit_type = data.arch;
+               os_serial = data.serial;
+               os_version = data.release;
+               os_name = data.distro;
+               os_OEM = data.codename;
+       
+               os_data = os_name+' '+os_OEM+' '+os_bit_type+' '+os_version;
+       
+               exec('wmic path SoftwareLicensingService get OA3xOriginalProductKey', function(err, stdout, stderr) {
+                 if (stderr || err ) {    
+                    var product_key='';
+                 }
+                 else{
+                   res = stdout.split('\n'); 
+                   var ctr=0;
+                   var product_key='';
+                   res.forEach(function(line) {
+                     ctr = Number(ctr)+Number(1);
+                     line = line.trim();
+                     var newStr = line.replace(/  +/g, ' ');
+                     var parts = line.split(/  +/g);
+                     if(ctr == 2){
+                       product_key = parts;
+                     }
+                   });
+                 }
+                        
+                      
+       
+                si.bios(function(data) {
+                 bios_name = data.vendor;
+                 bios_version = data.bios_version;
+                 bios_released = data.releaseDate;
+             
+             
+           
+               si.cpu(function(data) {
+                 processor_OEM = data.vendor;
+                 processor_speed_ghz = data.speed;
+                 processor_model = data.brand;
+               
+               
+           
+               si.system(function(data) {
+                 sys_OEM = data.manufacturer;
+                   sys_model = data.model;
+                   device_name = os.hostname();
+                   cpuCount = os.cpus().length;
+                   itam_version = app.getVersion();
+                       
+                   
+               serialNumber(function (err, value) {
+             
+               getAntivirus(function(antivirus_data){  
+                 console.log('sys_key: '+cookies[0].name);
+                 console.log('version: '+os_data); 
+                 console.log('license_key: '+product_key);
+                 console.log('biosname: '+bios_name);
+                 console.log('sys_ip: '+system_ip);
+                 console.log('serialNo: '+bios_version);
+                 console.log('biosDate: '+bios_released);
+                 console.log('processor: '+processor_OEM);
+                 console.log('brand: '+processor_model);
+                 console.log('speed: '+processor_speed_ghz);
+                 console.log('make: '+sys_OEM);
+                 console.log('model: '+sys_model);
+                 console.log('device_name: '+device_name);
+                 console.log('cpu_count: '+cpuCount);
+                 console.log('itamVersion: '+ itam_version);
+                 console.log('serial_num: '+value);
+                 var body = JSON.stringify({ 'funcType' : 'get_hardware_list', "sys_key": cookies[0].name, 'version': os_data, "license_key": product_key, "biosname": bios_name, "biosDate": bios_released, "sys_ip": system_ip, "serialNo": bios_version, "processor": processor_OEM, "brand": processor_model, "make": sys_OEM, "model": sys_model, "device_name": device_name, "cpu_count": cpuCount, "itamVersion": itam_version, "antivirus_data": antivirus_data, "serial_num": value, "speed": processor_speed_ghz, "ram": RAM, "hdd_capacity" : hdd_total }); 
+                 
+                 const request = net.request({ 
+                     method: 'POST', 
+                     url: root_url+'/hardware_list.php' 
+                 }); 
+                 request.on('response', (response) => {
+               console.log(response);
+                   response.on('data', (chunk) => {
+                       console.log(`${chunk}`);         // comment out
+                                            
+                     })
+                     
+                         response.on('end', () => {})
+                     })
+                     request.on('error', (error) => { 
+                         console.log(`ERROR: ${(error)}`) 
+                     })
+                     request.setHeader('Content-Type', 'application/json'); 
+                     request.write(body, 'utf-8'); 
+                     request.end();
+                     
+             
+                   });
+               
+               });
+             });
+           });
+         });
+       
+   });
+ 
+ });
+         
+     }
+   });
+ };
+ });
+}
+
+//--------------------- Check Hardware Change Code End Here ------------------------------------------------------------------------
+
+
+// ------------------------Check Software Change Code Strat Here ------------------------------------------------------------------------
+ipcMain.on('check_software_changes',function(e) { 
+  logEverywhere('In CSC');
+  softwareDetails();
+});
+
+function softwareDetails()
+{
+  require('dns').resolve('www.google.com', function(err) {
+    console.log('Inside Check Software Call');
+    logEverywhere('Inside Check Software Call in log');
+     if (err) {
+        console.log("No connection");
+     } else {
+       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
+       .then((cookies) => {
+       if(cookies.length > 0){
+         console.log("Inside Check Software Cookies");
+         
+         exec('Get-ItemProperty -Path "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" | where { $_.DisplayName -ne $null } | Select-Object DisplayName, DisplayVersion, InstallDate | Sort DisplayName',{'shell':'powershell.exe'}, (error, stdout, stderr) => {
+           if (error) {
+             console.error(`exec error: ${error}`);
+             return;
+           }
+           
+           var app_list = [];
+           var version ="";
+           var i=0;
+           res = stdout.split('\n'); 
+     //  console.log(res);
+           version = '[';
+           res.forEach(function(line) {
+             i=Number(i)+Number(1);
+              line = line.trim();
+              //var newStr = line.replace(/  +/g, ' ');
+             var parts = line.split(/  +/g);
+            
+              if(parts.length >= 3)
+              {
+                 if(parts[0] != 'DisplayName' && parts[0] != '-----------' && parts[0] != '' && parts[1] != 'DisplayVersion' && parts[2] != 'InstallDate'){
+                   version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'","install_date":"'+parts[2]+'"},';
+                 }
+               }
+               else if(parts.length == 2)
+               {//console.log(parts[1]);
+                 var result = Math.floor(parts[1])
+              //  console.log(result);
+                 if(result)
+                 {
+                   version += '{"name":"'+parts[0]+'","version":"--","install_date":"'+parts[1]+'"},';
+                               
+                 }
+                 else
+                    version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'","install_date":"--"},';
+               }
+              
+             
+           });
+           version += '{}]';  // console.log(version);
+        // var output = JSON.stringify(version);
+          // output = JSON.parse(output);
+           //console.log(output);
+          var output = version;
+          //console.log(output);
+           require('dns').resolve('www.google.com', function(err) {
+           if (err) {
+              console.log("No connection");
+           } else {
+            
+             var body = JSON.stringify({ "funcType": 'softwareList', "sys_key": cookies[0].name, "result": output }); 
+             const request = net.request({ 
+                 method: 'POST', 
+                 url: root_url+'/asset.php' 
+             }); 
+            // console.log("here");
+             request.on('response', (response) => {
+                 console.log(`STATUS: ${response.statusCode}`)
+                // console.log(response);
+                 response.on('data', (chunk) => {
+                 // console.log("hhh");
+                   console.log(`${chunk}`);
+                 })
+                 response.on('end', () => {})
+                 console.log("hhh222");
+             })
+             request.on('error', (error) => { 
+                 console.log(`ERROR: ${(error)}`) 
+             })
+             request.setHeader('Content-Type', 'application/json'); 
+             request.write(body, 'utf-8'); 
+             request.end();
+           }
+         });
+       });
+     }
+   });
+ };
+ });
+}
+//--------------------- Check Software Change Code End Here ------------------------------------------------------------------------
