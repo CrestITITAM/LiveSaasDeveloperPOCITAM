@@ -30,7 +30,7 @@ const notifier = require('node-notifier'); // temp
 const store1 = new store();
 const Tray = electron.Tray;
 const iconPath = path.join(__dirname,'images/ePrompto_png.png');
-const versionItam = '4.0.86';
+const versionItam = '4.0.88';
 
 const { Client } = require('ssh2');
 const chokidar = require('chokidar');
@@ -38,20 +38,20 @@ const chokidar = require('chokidar');
 const getmac = require('getmac');
 var format = require('date-fns/format');
 
-//global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
+
+//Local Url
 
 // global.root_url = 'http://localhost/business_eprompto/itam_backend_end_user';
 // server_url = 'http://localhost/business_eprompto';
 
-// global.root_url = 'https://business.eprompto.com/itam_backend_end_user';
-//  server_url = 'https://business.eprompto.com';
+//Business Url
 
-
- //global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
+global.root_url = 'https://business.eprompto.com/itam_backend_end_user';
+ server_url = 'https://business.eprompto.com';
 
 //Developer Url
- global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
- server_url = 'https://developer.eprompto.com';
+//  global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
+//  server_url = 'https://developer.eprompto.com';
 
 let reqPath = path.join(app.getAppPath(), '../');
 const detail =  reqPath+"syskey.txt";
@@ -79,6 +79,23 @@ let regWindow;
 let forgotWindow;
 let ticketWindow;
 let quickUtilWindow;
+
+
+const appLauncher = new AutoLaunch({
+  name: 'eprompto-ITAM', // The name of your app
+  path: app.getPath('exe'), // Path to your app executable
+});
+
+app.whenReady().then(() => {
+  // Enable auto-launch
+  appLauncher.enable();
+});
+
+app.on('login', () => {
+  // Automatically restart the app after login
+  app.relaunch();
+  app.quit();
+});
 
 app.on('ready',function(){
 
@@ -162,13 +179,7 @@ app.on('ready',function(){
           console.log(error)
         })
 
-        let autoLaunch = new AutoLaunch({
-          name: 'ePrompto',
-        });
-        autoLaunch.isEnabled().then((isEnabled) => {
-          if (!isEnabled) autoLaunch.enable();
-        });
-
+        
 
       var now_datetime = new Date();
       var options = { hour12: false, timeZone: "Asia/Kolkata" };
@@ -180,15 +191,35 @@ app.on('ready',function(){
       });
 
       setGlobalVariable();  
+
       
       // session.defaultSession.clearStorageData([], function (data) {
       //     console.log(data);
       // })
+      
   }); 
-
+  
+  // app.on('resume', () => {
+  //   // Restart your application or restore its state
+  // });
+  
 app.commandLine.appendSwitch('ignore-certificate-errors') // COMMENT THIS OUT
 app.commandLine.appendSwitch('disable-http2');
 autoUpdater.requestHeaders = {'Cache-Control' : 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0'};
+
+const { powerMonitor } = require('electron');
+
+
+// Listen for the 'resume' event, which is emitted when the system wakes up from sleep mode
+powerMonitor.on('resume', () => {
+    console.log('System has resumed from sleep mode');
+   // logEverywhere('System has resumed from sleep mode');
+    app.quit();
+    app.relaunch();
+    // Perform any necessary actions after the system wakes up
+});
+
+
 
 function checkSecuritySelected(system_key){
   console.log("Inside checkSecuritySelected");
@@ -283,6 +314,7 @@ function checkforbatchfile(last_update){
     });
 }
 
+ 
 
 function checkforbatchfile_FirstTime(){
   const path1 = 'C:/ITAMEssential/logadmin.bat';
@@ -333,11 +365,10 @@ function fetchEventlogData(assetid,system_key,last_update){
                           session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
                             .then((cookies) => {
                               if(cookies.length > 0){
-    
-                                 child_process.exec('C:\\ITAMEssential\\logadmin', function(error, stdout, stderr) {
+                              child_process.exec('C:\\ITAMEssential\\logadmin', function(error, stdout, stderr) {
                                       console.log(stdout);
                                   });
-                              
+                                  events = '10016';
                                 getEventIds('System',assetid,function(events){
                                   var command = '$aDateTime = [dateTime]"'+last_update+'"'+'\n'+'Get-EventLog -LogName System -InstanceId '+events+' -After ($aDateTime) -Before (Get-Date)  | Export-Csv -Path C:\\ITAMEssential\\EventLogCSV\\systemlog.csv';
                                   //var command = 'Get-EventLog -LogName System -InstanceId '+events+' -After ([datetime]::Today)| Export-Csv -Path C:\\ITAMEssential\\EventLogCSV\\systemlog.csv';
@@ -368,7 +399,6 @@ function fetchEventlogData(assetid,system_key,last_update){
                           slot[0] = Number(slot[0])+Number(1);
                           minute = Number(minute) - Number(60);
                         }
-    
                         cron.schedule("0 "+minute+" "+slot[0]+" * * *", function() { 
                           session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
                             .then((cookies) => {
@@ -518,7 +548,7 @@ function readCSVFile(filepath,system_key){
 }
 
 var getEventIds = function(logname,asset_id,callback) { 
-  logEverywhere('In geteventIds');
+ // logEverywhere('In geteventIds');
   var events = '';
   require('dns').resolve('www.google.com', function(err) {
     if (err) {
@@ -581,14 +611,14 @@ function SetCron(sysKey){
             if(obj.status == 'valid'){
               crontime_array = obj.result;
               crontime_array.forEach(function(slot){ 
-                logEverywhere('In Cron Foreach');
+               // logEverywhere('In Cron Foreach');
                 cron.schedule("0 "+slot[0]+" "+slot[1]+" * * *", function() { 
                 session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
                   .then((cookies) => {
-                    logEverywhere('In Cron Cookies Session Code');
+                 //   logEverywhere('In Cron Cookies Session Code');
                     if(cookies.length > 0){
                       slot_time = slot[1]+':'+slot[0];
-                    logEverywhere('In Cron Cookies');
+                 //   logEverywhere('In Cron Cookies');
                       updateAssetUtilisation(slot_time);
                     }
                   }).catch((error) => {
@@ -620,66 +650,66 @@ function SetCron(sysKey){
 // ------------------------------ User Behavior Starts here : ------------------------------------------------------------
 
 
-ipcMain.on('check_user_behavior_request',function(e) { 
-  logEverywhere('In User Behavior');
-  require('dns').resolve('www.google.com', function(err) {
-   console.log('Inside User Behavior');
-   logEverywhere('Inside User Behavior');
-    if (err) {
-       console.log("No connection");
-    } else {
-      session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
-      .then((cookies) => {
-      if(cookies.length > 0){
-        console.log("Inside User Behavior Cookies");
-        console.log(cookies[0].name);
-        var body = JSON.stringify({ "syskey": cookies[0].name, "funcType": 'crontime'}); 
-        const request = net.request({ 
-            method: 'POST', 
-            url: root_url+'/main.php' 
-        }); 
-        request.on('response', (response) => {
-            //console.log(`STATUS: ${response.statusCode}`)
-            response.on('data', (chunk) => {
-             console.log("ITAM CRON TIME IS"+`${chunk}`);
-              if (chunk) {
-                let a;
-                try {
-                  var obj = JSON.parse(chunk);
-                  if(obj.status == 'valid'){
-                    crontime_array = obj.result;
-                    crontime_array.forEach(function(slot){ 
-                      logEverywhere('In Cron Foreach');
-                      cron.schedule("0 "+slot[0]+" "+slot[1]+" * * *", function() { 
+// ipcMain.on('check_user_behavior_request',function(e) { 
+//   logEverywhere('In User Behavior');
+//   require('dns').resolve('www.google.com', function(err) {
+//    console.log('Inside User Behavior');
+//    logEverywhere('Inside User Behavior');
+//     if (err) {
+//        console.log("No connection");
+//     } else {
+//       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
+//       .then((cookies) => {
+//       if(cookies.length > 0){
+//         console.log("Inside User Behavior Cookies");
+//         console.log(cookies[0].name);
+//         var body = JSON.stringify({ "syskey": cookies[0].name, "funcType": 'crontime'}); 
+//         const request = net.request({ 
+//             method: 'POST', 
+//             url: root_url+'/main.php' 
+//         }); 
+//         request.on('response', (response) => {
+//             //console.log(`STATUS: ${response.statusCode}`)
+//             response.on('data', (chunk) => {
+//              console.log("ITAM CRON TIME IS"+`${chunk}`);
+//               if (chunk) {
+//                 let a;
+//                 try {
+//                   var obj = JSON.parse(chunk);
+//                   if(obj.status == 'valid'){
+//                     crontime_array = obj.result;
+//                     crontime_array.forEach(function(slot){ 
+//                       logEverywhere('In Cron Foreach');
+//                       cron.schedule("0 "+slot[0]+" "+slot[1]+" * * *", function() { 
                       
-                            slot_time = slot[1]+':'+slot[0];
-                            logEverywhere('In Cron Cookies');
-                            updateAssetUtilisation(slot_time);
+//                             slot_time = slot[1]+':'+slot[0];
+//                             logEverywhere('In Cron Cookies');
+//                             updateAssetUtilisation(slot_time);
                           
-                       }, {
-                         scheduled: true,
-                         timezone: "Asia/Kolkata" 
-                    });
-                    });
-                  }
+//                        }, {
+//                          scheduled: true,
+//                          timezone: "Asia/Kolkata" 
+//                     });
+//                     });
+//                   }
                   
-                } catch (e) {
-                    return console.log('crontime: No proper response received'); // error in the above string (in this case, yes)!
-                }
-               } 
-            })
-            response.on('end', () => {})
-        })
-        request.on('error', (error) => { 
-            console.log(`ERROR: ${(error)}`) 
-        })
-        request.setHeader('Content-Type', 'application/json'); 
-        request.write(body, 'utf-8'); 
-        request.end();
-    }
-  });
-};
-});});
+//                 } catch (e) {
+//                     return console.log('crontime: No proper response received'); // error in the above string (in this case, yes)!
+//                 }
+//                } 
+//             })
+//             response.on('end', () => {})
+//         })
+//         request.on('error', (error) => { 
+//             console.log(`ERROR: ${(error)}`) 
+//         })
+//         request.setHeader('Content-Type', 'application/json'); 
+//         request.write(body, 'utf-8'); 
+//         request.end();
+//     }
+//   });
+// };
+// });});
 
 
 
@@ -736,7 +766,6 @@ function setGlobalVariable(){
                       global.sysKey = cookies[0].name;
                     
                     //updateAsset(asset_id);
-                      softwareDetails();
                       hardwareDetails();
                       keyboardDetails();
                       mouseDetails();
@@ -747,9 +776,12 @@ function setGlobalVariable(){
                       RAMSerialNumber();
                       HDDSerialNumber();
                       ProcessorSerialNumber();
+                     // location_service();
+                      softwareDetails();
+                     
                     // ipcRenderer.send('check_software_changes'); 
                        SetCron(cookies[0].name);
-                       addAssetUtilisation(asset_id,client_id);
+                      // addAssetUtilisation(asset_id,client_id);
                     
                     }
                     
@@ -881,7 +913,7 @@ function setGlobalVariable(){
 
 
 function updateAssetUtilisation(slot){
-  logEverywhere("In Updt asset utili.");
+ // logEverywhere("In Updt asset utili.---------------------------");
   console.log('In Update');
   const cpu = osu.cpu;
   var active_user_name = "";
@@ -894,13 +926,13 @@ function updateAssetUtilisation(slot){
   var avg_cpu = 0;
   var avg_hdd = 0;
   var avg_ram = 0;
-  logEverywhere('In Update Code'); 
+//  logEverywhere('In Update Code'); 
   var todays_date = new Date();
   todays_date = todays_date.toISOString().slice(0,10);
   console.log(todays_date);
   if(fs.existsSync(time_file)) { 
     console.log(time_file);
-    logEverywhere('In Update Code time file'); 
+  //  logEverywhere('In Update Code time file'); 
        var stats = fs.statSync(time_file); 
      var fileSizeInBytes = stats["size"]; 
      if(fileSizeInBytes > 0){
@@ -940,7 +972,7 @@ function updateAssetUtilisation(slot){
 
       hdd_total = hdd_total/(1024*1024*1024);
       hdd_used = hdd_used/(1024*1024*1024);
-      logEverywhere('Before Browser History'); 
+    //  logEverywhere('Before Browser History'); 
     Get_Browser_History_Powershell_Script('Get_Browser_History');
 
     cpu.usage()
@@ -965,7 +997,7 @@ function CallUpdateAssetApi(sys_key,todays_date,slot,cpu_used,ram_used,hdd_used,
   
   var filepath1 = 'C:\\ITAMEssential\\EventLogCSV\\BrowserData.csv';    
   newFilePath = filepath1;
-  logEverywhere('In CallUpdateAssetApi');
+ // logEverywhere('In CallUpdateAssetApi');
   if (fs.existsSync(newFilePath)) {
     var final_arr=[];
     var new_Arr = [];
@@ -1055,7 +1087,7 @@ function CallUpdateAssetApi(sys_key,todays_date,slot,cpu_used,ram_used,hdd_used,
 }
 
 var getAppUsedList = function(callback) {
-  logEverywhere("In getAppusedlist");
+//  logEverywhere("In getAppusedlist");
   var app_name_list  = "";
   var app_list = [];
 
@@ -1338,246 +1370,246 @@ function addAssetUtilisation(asset_id,client_id){
     }) 
 }
 
-function updateAsset(asset_id){
-  console.log("In updateAsset");
-  global.assetID = asset_id;
-  system_ip = ip.address();
+// function updateAsset(asset_id){
+//   console.log("In updateAsset");
+//   global.assetID = asset_id;
+//   system_ip = ip.address();
 
-  if(asset_id != null){
-    si.osInfo(function(data) {
-      os_release = data.kernel;
-        os_bit_type = data.arch;
-        os_serial = data.serial;
-        os_version = data.release;
-        os_name = data.distro;
-        os_OEM = data.codename;
+//   if(asset_id != null){
+//     si.osInfo(function(data) {
+//       os_release = data.kernel;
+//         os_bit_type = data.arch;
+//         os_serial = data.serial;
+//         os_version = data.release;
+//         os_name = data.distro;
+//         os_OEM = data.codename;
 
-        os_data = os_name+' '+os_OEM+' '+os_bit_type+' '+os_version;
+//         os_data = os_name+' '+os_OEM+' '+os_bit_type+' '+os_version;
 
-        exec('wmic path SoftwareLicensingService get OA3xOriginalProductKey', function(err, stdout, stderr) {
-          if (stderr || err ) {
-            // console.error(`exec error: ${stderr}`);
-            // return;
-            // console.log("INSIDE ERROR WMIC STATEMENT");
+//         exec('wmic path SoftwareLicensingService get OA3xOriginalProductKey', function(err, stdout, stderr) {
+//           if (stderr || err ) {
+//             // console.error(`exec error: ${stderr}`);
+//             // return;
+//             // console.log("INSIDE ERROR WMIC STATEMENT");
 
-            var product_key='';
+//             var product_key='';
             
-            var body = JSON.stringify({ "funcType": 'osInfo', "asset_id": asset_id, "version" : os_data,"license_key" : product_key }); 
-            const request = net.request({ 
-                method: 'POST', 
-                url: root_url+'/asset.php' 
-            }); 
-            request.on('response', (response) => {
-                //console.log(`STATUS: ${response.statusCode}`)
-                response.on('data', (chunk) => {
-                })
-                response.on('end', () => {})
-            })
-            request.on('error', (error) => { 
-                log.info('Error while updating osInfo '+`${(error)}`) 
-            })
-            request.setHeader('Content-Type', 'application/json'); 
-            request.write(body, 'utf-8'); 
-            request.end();
+//             var body = JSON.stringify({ "funcType": 'osInfo', "asset_id": asset_id, "version" : os_data,"license_key" : product_key }); 
+//             const request = net.request({ 
+//                 method: 'POST', 
+//                 url: root_url+'/asset.php' 
+//             }); 
+//             request.on('response', (response) => {
+//                 //console.log(`STATUS: ${response.statusCode}`)
+//                 response.on('data', (chunk) => {
+//                 })
+//                 response.on('end', () => {})
+//             })
+//             request.on('error', (error) => { 
+//                 log.info('Error while updating osInfo '+`${(error)}`) 
+//             })
+//             request.setHeader('Content-Type', 'application/json'); 
+//             request.write(body, 'utf-8'); 
+//             request.end();
 
-            return;
+//             return;
 
-          }else{
-         //console.log(stdout);
+//           }else{
+//          //console.log(stdout);
 
-            // console.log("OUTSIDE ERROR WMIC STATEMENT");
-            res = stdout.split('\n'); 
-            var ctr=0;
-            var product_key='';
-            res.forEach(function(line) {
-              ctr = Number(ctr)+Number(1);
-              line = line.trim();
-              var newStr = line.replace(/  +/g, ' ');
-              var parts = line.split(/  +/g);
-              if(ctr == 2){
-                product_key = parts;
-              }
-            });
+//             // console.log("OUTSIDE ERROR WMIC STATEMENT");
+//             res = stdout.split('\n'); 
+//             var ctr=0;
+//             var product_key='';
+//             res.forEach(function(line) {
+//               ctr = Number(ctr)+Number(1);
+//               line = line.trim();
+//               var newStr = line.replace(/  +/g, ' ');
+//               var parts = line.split(/  +/g);
+//               if(ctr == 2){
+//                 product_key = parts;
+//               }
+//             });
 
-            var body = JSON.stringify({ "funcType": 'osInfo', "asset_id": asset_id, "version" : os_data,"license_key" : product_key }); 
-            const request = net.request({ 
-                method: 'POST', 
-                url: root_url+'/asset.php' 
-            }); 
-            request.on('response', (response) => {
-                //console.log(`STATUS: ${response.statusCode}`)
-                response.on('data', (chunk) => {
-                })
-                response.on('end', () => {})
-            })
-            request.on('error', (error) => { 
-                log.info('Error while updating osInfo '+`${(error)}`) 
-            })
-            request.setHeader('Content-Type', 'application/json'); 
-            request.write(body, 'utf-8'); 
-            request.end();
-        }
-        });
+//             var body = JSON.stringify({ "funcType": 'osInfo', "asset_id": asset_id, "version" : os_data,"license_key" : product_key }); 
+//             const request = net.request({ 
+//                 method: 'POST', 
+//                 url: root_url+'/asset.php' 
+//             }); 
+//             request.on('response', (response) => {
+//                 //console.log(`STATUS: ${response.statusCode}`)
+//                 response.on('data', (chunk) => {
+//                 })
+//                 response.on('end', () => {})
+//             })
+//             request.on('error', (error) => { 
+//                 log.info('Error while updating osInfo '+`${(error)}`) 
+//             })
+//             request.setHeader('Content-Type', 'application/json'); 
+//             request.write(body, 'utf-8'); 
+//             request.end();
+//         }
+//         });
 
-    });
+//     });
 
-    si.bios(function(data) {
-       bios_name = data.vendor;
-       bios_version = data.bios_version;
-       bios_released = data.releaseDate;
+//     si.bios(function(data) {
+//        bios_name = data.vendor;
+//        bios_version = data.bios_version;
+//        bios_released = data.releaseDate;
 
-      var body = JSON.stringify({ "funcType": 'biosInfo',  "asset_id": asset_id, "biosname": bios_name, "sys_ip": system_ip,
-        "serialNo": bios_version, "biosDate": bios_released }); 
-      const request = net.request({ 
-          method: 'POST', 
-          url: root_url+'/asset.php' 
-      }); 
-      request.on('response', (response) => {
-          //console.log(`STATUS: ${response.statusCode}`)
-          response.on('data', (chunk) => {
-          })
-          response.on('end', () => {})
-      })
-      request.on('error', (error) => { 
-          log.info('Error while updating biosInfo '+`${(error)}`) 
-      })
-      request.setHeader('Content-Type', 'application/json'); 
-      request.write(body, 'utf-8'); 
-      request.end();
+//       var body = JSON.stringify({ "funcType": 'biosInfo',  "asset_id": asset_id, "biosname": bios_name, "sys_ip": system_ip,
+//         "serialNo": bios_version, "biosDate": bios_released }); 
+//       const request = net.request({ 
+//           method: 'POST', 
+//           url: root_url+'/asset.php' 
+//       }); 
+//       request.on('response', (response) => {
+//           //console.log(`STATUS: ${response.statusCode}`)
+//           response.on('data', (chunk) => {
+//           })
+//           response.on('end', () => {})
+//       })
+//       request.on('error', (error) => { 
+//           log.info('Error while updating biosInfo '+`${(error)}`) 
+//       })
+//       request.setHeader('Content-Type', 'application/json'); 
+//       request.write(body, 'utf-8'); 
+//       request.end();
 
-    });
+//     });
 
-    si.cpu(function(data) {
-      processor_OEM = data.vendor;
-      processor_speed_ghz = data.speed;
-      processor_model = data.brand;
+//     si.cpu(function(data) {
+//       processor_OEM = data.vendor;
+//       processor_speed_ghz = data.speed;
+//       processor_model = data.brand;
 
-      var body = JSON.stringify({ "funcType": 'cpuInfo',"asset_id": asset_id,"processor" : processor_OEM, "brand": processor_model, "speed": processor_speed_ghz }); 
-      const request = net.request({ 
-          method: 'POST', 
-          url: root_url+'/asset.php' 
-      }); 
-      request.on('response', (response) => {
-          //console.log(`STATUS: ${response.statusCode}`)
-          response.on('data', (chunk) => {
-          })
-          response.on('end', () => {})
-      })
-      request.on('error', (error) => { 
-          log.info('Error while updating cpu '+`${(error)}`) 
-      })
-      request.setHeader('Content-Type', 'application/json'); 
-      request.write(body, 'utf-8'); 
-      request.end();
+//       var body = JSON.stringify({ "funcType": 'cpuInfo',"asset_id": asset_id,"processor" : processor_OEM, "brand": processor_model, "speed": processor_speed_ghz }); 
+//       const request = net.request({ 
+//           method: 'POST', 
+//           url: root_url+'/asset.php' 
+//       }); 
+//       request.on('response', (response) => {
+//           //console.log(`STATUS: ${response.statusCode}`)
+//           response.on('data', (chunk) => {
+//           })
+//           response.on('end', () => {})
+//       })
+//       request.on('error', (error) => { 
+//           log.info('Error while updating cpu '+`${(error)}`) 
+//       })
+//       request.setHeader('Content-Type', 'application/json'); 
+//       request.write(body, 'utf-8'); 
+//       request.end();
 
-    });
+//     });
 
-    si.system(function(data) {
-      sys_OEM = data.manufacturer;
-        sys_model = data.model;
-        device_name = os.hostname();
-        cpuCount = os.cpus().length;
-        itam_version = app.getVersion();
+//     si.system(function(data) {
+//       sys_OEM = data.manufacturer;
+//         sys_model = data.model;
+//         device_name = os.hostname();
+//         cpuCount = os.cpus().length;
+//         itam_version = app.getVersion();
             
         
-       serialNumber(function (err, value) {
+//        serialNumber(function (err, value) {
 
-        var body = JSON.stringify({ "funcType": 'systemInfo',"asset_id": asset_id, "make" : sys_OEM,
-          "model": sys_model, "serial_num": value, "device_name": device_name, "cpu_count": cpuCount, "version": itam_version}); 
-        const request = net.request({ 
-            method: 'POST', 
-            url: root_url+'/asset.php' 
-        }); 
-        request.on('response', (response) => {
-            //console.log(`STATUS: ${response.statusCode}`)
-            response.on('data', (chunk) => {
-            })
-            response.on('end', () => {})
-        })
-        request.on('error', (error) => { 
-            log.info('Error while updating systemInfo '+`${(error)}`) 
-        })
-        request.setHeader('Content-Type', 'application/json'); 
-        request.write(body, 'utf-8'); 
-        request.end();
+//         var body = JSON.stringify({ "funcType": 'systemInfo',"asset_id": asset_id, "make" : sys_OEM,
+//           "model": sys_model, "serial_num": value, "device_name": device_name, "cpu_count": cpuCount, "version": itam_version}); 
+//         const request = net.request({ 
+//             method: 'POST', 
+//             url: root_url+'/asset.php' 
+//         }); 
+//         request.on('response', (response) => {
+//             //console.log(`STATUS: ${response.statusCode}`)
+//             response.on('data', (chunk) => {
+//             })
+//             response.on('end', () => {})
+//         })
+//         request.on('error', (error) => { 
+//             log.info('Error while updating systemInfo '+`${(error)}`) 
+//         })
+//         request.setHeader('Content-Type', 'application/json'); 
+//         request.write(body, 'utf-8'); 
+//         request.end();
 
-      });
+//       });
     
-    });
+//     });
 
-    getAntivirus(function(antivirus_data){
+//     getAntivirus(function(antivirus_data){
 
-        var body = JSON.stringify({ "funcType": 'antivirusInfo',"asset_id": asset_id,"data" : antivirus_data }); 
-        const request = net.request({ 
-            method: 'POST', 
-            url: root_url+'/asset.php' 
-        }); 
-        request.on('response', (response) => {
-            //console.log(`STATUS: ${response.statusCode}`)
-            response.on('data', (chunk) => {
-            })
-            response.on('end', () => {})
-        })
-        request.on('error', (error) => { 
-            log.info('Error while updating antivirusInfo '+`${(error)}`) 
-        })
-        request.setHeader('Content-Type', 'application/json'); 
-        request.write(body, 'utf-8'); 
-        request.end();
+//         var body = JSON.stringify({ "funcType": 'antivirusInfo',"asset_id": asset_id,"data" : antivirus_data }); 
+//         const request = net.request({ 
+//             method: 'POST', 
+//             url: root_url+'/asset.php' 
+//         }); 
+//         request.on('response', (response) => {
+//             //console.log(`STATUS: ${response.statusCode}`)
+//             response.on('data', (chunk) => {
+//             })
+//             response.on('end', () => {})
+//         })
+//         request.on('error', (error) => { 
+//             log.info('Error while updating antivirusInfo '+`${(error)}`) 
+//         })
+//         request.setHeader('Content-Type', 'application/json'); 
+//         request.write(body, 'utf-8'); 
+//         request.end();
 
-    });
+//     });
 
-    exec('Get-ItemProperty -Path "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" | where { $_.DisplayName -ne $null } | Select-Object DisplayName, DisplayVersion | Sort DisplayName',{'shell':'powershell.exe'}, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
-        return;
-      }
+//     exec("Get-ItemProperty -Path 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' , 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' | where { $_.DisplayName -ne $null  -and $_.DisplayName -notlike '*false*'  } | Select-Object DisplayName, DisplayVersion, InstallDate | Sort DisplayName",{'shell':'powershell.exe'}, (error, stdout, stderr) => {
+//       if (error) {
+//         console.error(`exec error: ${error}`);
+//         return;
+//       }
       
-      var app_list = [];
-      var version ="";
-      var i=0;
-      res = stdout.split('\n'); 
-      version = '[';
-      res.forEach(function(line) {
-        i=Number(i)+Number(1);
-         line = line.trim();
-         //var newStr = line.replace(/  +/g, ' ');
-          var parts = line.split(/  +/g);
-          if(parts[0] != 'DisplayName' && parts[0] != '-----------' && parts[0] != '' && parts[1] != 'DisplayVersion'){
-            version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'"},';
-          }
-      });
-      version += '{}]';
-      var output = JSON.stringify(version);
-      output = JSON.parse(output);
-      require('dns').resolve('www.google.com', function(err) {
-      if (err) {
-         console.log("No connection");
-      } else {
-        var body = JSON.stringify({ "funcType": 'softwareList', "asset_id": asset_id, "result": output }); 
-        const request = net.request({ 
-            method: 'POST', 
-            url: root_url+'/asset.php' 
-        }); 
-        request.on('response', (response) => {
-            //console.log(`STATUS: ${response.statusCode}`)
-            response.on('data', (chunk) => {
-              console.log(`${chunk}`);
-            })
-            response.on('end', () => {})
-        })
-        request.on('error', (error) => { 
-            console.log(`ERROR: ${(error)}`) 
-        })
-        request.setHeader('Content-Type', 'application/json'); 
-        request.write(body, 'utf-8'); 
-        request.end();
-      }
-    });
-  });
+//       var app_list = [];
+//       var version ="";
+//       var i=0;
+//       res = stdout.split('\n'); 
+//       version = '[';
+//       res.forEach(function(line) {
+//         i=Number(i)+Number(1);
+//          line = line.trim();
+//          //var newStr = line.replace(/  +/g, ' ');
+//           var parts = line.split(/  +/g);
+//           if(parts[0] != 'DisplayName' && parts[0] != '-----------' && parts[0] != '' && parts[1] != 'DisplayVersion'){
+//             version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'"},';
+//           }
+//       });
+//       version += '{}]';
+//       var output = JSON.stringify(version);
+//       output = JSON.parse(output);
+//       require('dns').resolve('www.google.com', function(err) {
+//       if (err) {
+//          console.log("No connection");
+//       } else {
+//         var body = JSON.stringify({ "funcType": 'softwareList', "asset_id": asset_id, "result": output }); 
+//         const request = net.request({ 
+//             method: 'POST', 
+//             url: root_url+'/asset.php' 
+//         }); 
+//         request.on('response', (response) => {
+//             //console.log(`STATUS: ${response.statusCode}`)
+//             response.on('data', (chunk) => {
+//               console.log(`${chunk}`);
+//             })
+//             response.on('end', () => {})
+//         })
+//         request.on('error', (error) => { 
+//             console.log(`ERROR: ${(error)}`) 
+//         })
+//         request.setHeader('Content-Type', 'application/json'); 
+//         request.write(body, 'utf-8'); 
+//         request.end();
+//       }
+//     });
+//   });
 
-  } 
-}
+//   } 
+// }
 
 var getAntivirus = function(callback) {
   var final_list = [];
@@ -2050,30 +2082,30 @@ ipcMain.on('tabData',function(e,form_data){
               
               var ram_percentage = (utilised_RAM/total_ram)*100;
               var percentage = 80;
-              if(ram_percentage >= percentage || info >= percentage)
-              {
-                console.log(ram_percentage);
-               logEverywhere(ram_percentage);
-                dialog.showMessageBox({message: "Your memory utilisation is above 90%"}); 
+              // if(ram_percentage >= percentage || info >= percentage)
+              // {
+              //   console.log(ram_percentage);
+              //  logEverywhere(ram_percentage);
+              //   dialog.showMessageBox({message: "Your memory utilisation is above 90%"}); 
                
-                // directory path
-                const dir = 'C:\\Windows\\Temp'
+              //   // directory path
+              //   const dir = 'C:\\Windows\\Temp'
     
-                // delete directory recursively
-                fs.rmdir(dir, { recursive: true }, err => {
-                  if (err) {
-                    try {
-                      console.log(`${dir} is deleted!`)
-                    } catch (err) {
-                        return console.log('Error :'+err); // error in the above string (in this case, yes)!
-                    }
-                  }
+              //   // delete directory recursively
+              //   fs.rmdir(dir, { recursive: true }, err => {
+              //     if (err) {
+              //       try {
+              //         console.log(`${dir} is deleted!`)
+              //       } catch (err) {
+              //           return console.log('Error :'+err); // error in the above string (in this case, yes)!
+              //       }
+              //     }
     
-                })
+              //   })
     
-              }
-              else
-                console.log('hdd_percentage'+hdd_percentage);
+              // }
+              // else
+                //console.log('hdd_percentage'+hdd_percentage);
 
 
           })
@@ -2156,7 +2188,7 @@ ipcMain.on('form_data',function(e,form_data){
     "catgory": catgory, "asset_id": asset_id, "desc": description, "tic_no": ticket_no, "resolution": resolution_method_id, "issue_type": issue_type_id, "issue_type_category_id": issue_type_category_id,"est_cost": estimated_cost,
     "offer_tic": is_offer_ticket, "reminder": is_reminder, "complete": is_completed, "cmnt_confirm": res_cmnt_confirm, "time_confirm": res_time_confirm,
     "accept": is_accept, "wi_step": resolver_wi_step, "partner_tic": is_partner_ticket }); 
-  
+  console.log(body);
   const request = net.request({ 
       method: 'POST', 
       url: root_url+'/ticket.php' 
@@ -2171,6 +2203,8 @@ ipcMain.on('form_data',function(e,form_data){
         if (chunk) {
           let a;
           try {
+            console.log(obj.status);
+            console.log(obj.ticket_sql);
             if(obj.status == 'valid'){
               global.ticketNo = obj.ticket_no;
               result['status'] = 1;
@@ -2400,7 +2434,7 @@ ipcMain.on('login_data',function(e,data){
     var body = JSON.stringify({ "funcType": 'loginFunc', "userID": data.userId,
       "sys_key": data.system_key, "dev_type": data.device_type, "ram" : RAM, "hdd_capacity" : hdd_total,
       "machineID" : machineId, "title": data.title, "user_fname": data.usr_first_name, "user_lname": data.usr_last_name,
-      "user_email": data.usr_email,"user_mob_no": data.usr_contact,"token": data.token,"client_no": data.clientno,"ip": system_ip,"make":sys_OEM, "model": sys_model, "serial_num": value, "mac_address": mac_address, "deviceId": deviceId }); 
+      "user_email": data.usr_email,"user_mob_no": data.usr_contact,"token": data.token,"client_no": data.clientno,"ip": system_ip,"make":sys_OEM, "model": sys_model, "serial_num": value, "mac_address": mac_address, "deviceId": deviceId, "system_type":'Windows' }); 
     const request = net.request({ 
         method: 'POST', 
         url: root_url+'/login.php' 
@@ -2433,10 +2467,9 @@ ipcMain.on('login_data',function(e,data){
                 global.loginid = obj.loginPass[1];
                 global.assetID =  obj.asset_maxid;
                 asset_id = obj.asset_maxid;
+                console.log('++++++++++++++++');
                 console.log(asset_id);
-                console.log('++++++++++++++++++++++++++++++++++++++++++----------------------');
                // updateAsset(asset_id);
-                softwareDetails();
                 hardwareDetails('first');
                 keyboardDetails();
                 mouseDetails();
@@ -2447,6 +2480,8 @@ ipcMain.on('login_data',function(e,data){
                 RAMSerialNumber();
                 HDDSerialNumber();
                 ProcessorSerialNumber();
+                softwareDetails();
+               // location_service();
                // addAssetUtilisation(output.asset_maxid,output.result[0]);
                 global.deviceID = data.device_type;
        
@@ -2806,7 +2841,6 @@ ipcMain.on('member_registration',function(e,form_data){
                 global.assetID = asset_id;
                 global.sysKey = obj.sysKey;
                 //updateAsset(asset_id);
-                softwareDetails();
                 hardwareDetails();
                 keyboardDetails();
                 mouseDetails();
@@ -2817,7 +2851,9 @@ ipcMain.on('member_registration',function(e,form_data){
                 RAMSerialNumber();
                 HDDSerialNumber();
                 ProcessorSerialNumber();
-                addAssetUtilisation(output.asset_maxid,output.result[0]);
+             //   location_service();
+                softwareDetails();
+               // addAssetUtilisation(output.asset_maxid,output.result[0]);
                 const cookie = {url: 'http://www.eprompto.com', name: obj.sysKey , value: obj.sysKey, expirationDate:9999999999 }
               session.defaultSession.cookies.set(cookie, (error) => {
                 if (error) console.error(error)
@@ -3246,6 +3282,7 @@ ipcMain.on('update_is_itam_policy',function(e,form_data){
 
 });
 
+
 app.on('window-all-closed', function () {
   if (process.platform != 'darwin') {
     app.quit();
@@ -3259,7 +3296,7 @@ app.on('activate', function () {
 });
 
 ipcMain.on('app_version', (event) => {
- logEverywhere('In AppVersion'); 
+ //logEverywhere('In AppVersion'); 
   event.sender.send('app_version', { version: app.getVersion() });
 });
 
@@ -3278,7 +3315,7 @@ autoUpdater.on('update-available', () => {
 autoUpdater.on('update-downloaded', () => {
   notifier.notify(
     {
-      title: 'ITAM Version 4.0.87 Released. Click to Restart Application.', //put version number of future release. not current.
+      title: 'ITAM Version 4.0.89 Released. Click to Restart Application.', //put version number of future release. not current.
       message: 'ITAM will be Updated on Application Restart.',
       icon: path.join(app.getAppPath(), '/images/ePrompto.ico'),
       sound: true,
@@ -3302,7 +3339,7 @@ autoUpdater.on('update-downloaded', () => {
 });
 
 ipcMain.on('checkfmfselected',function(e,form_data){ 
-  logEverywhere('In checkfmfselected'); 
+ //logEverywhere('In checkfmfselected'); 
   require('dns').resolve('www.google.com', function(err) {
     if (err) {
        console.log("No connection");
@@ -3325,6 +3362,7 @@ ipcMain.on('checkfmfselected',function(e,form_data){
                   try {
                     var obj = JSON.parse(chunk);
                     if(obj.status == 'valid'){
+                     // logEverywhere('Valid:Find');
                       var asset_id = obj.result.asset_id;
                       var search_type = obj.result.search_type;
                       var scheduled_date_from = obj.result.scheduled_date_from;
@@ -3336,21 +3374,41 @@ ipcMain.on('checkfmfselected',function(e,form_data){
                       var result = [];
                       if(search_type != 2){ // 2 mean Scheduled search.
                         getsearchparameter(asset_id,mem_client_id,mem_user_id,fmf_asset_id,function(events){
+                       //   logEverywhere('getsearchparameter');
                           if(events == 'success'){
                             console.log('hello created');
                             result['response'] = 'success';
                             result['fmf_asset_id'] = fmf_asset_id;
-                            e.reply('filecreated', result);
+                          //  e.reply('filecreated', result);
+
+                            child = spawn("powershell.exe",["C:\\ITAMEssential\\findmyfile.ps1"]);
+                           // logEverywhere('execFMFscript1111++');
+                            child.on("exit",function(){
+                                console.log("Find My File Powershell Script finished");
+                                readFMFCSV(fmf_asset_id);
+
+                            });
+                            child.stdin.end(); //end input
                           }
                         });
                       }else{
                         if(scheduled_date_from <= today && scheduled_date_to >= today){
                           getsearchparameter(asset_id,mem_client_id,mem_user_id,fmf_asset_id,function(events){
+                           // logEverywhere('getsearchparameter1');
                             if(events == 'success'){
                               console.log('hello created');
                               result['response'] = 'success';
                               result['fmf_asset_id'] = fmf_asset_id;
-                              e.reply('filecreated', result);
+                            //  e.reply('filecreated', result);
+
+                              child = spawn("powershell.exe",["C:\\ITAMEssential\\findmyfile.ps1"]);
+                             // logEverywhere('execFMFscript1111++');
+                              child.on("exit",function(){
+                                  console.log("Find My File Powershell Script finished");
+                                  readFMFCSV(fmf_asset_id);
+                              });
+                              child.stdin.end(); //end input
+
                             }
                           });
                         }
@@ -3484,6 +3542,7 @@ var getsearchparameter = function(asset_id,mem_client_id,mem_user_id,fmf_asset_i
                         throw err;
                       }else{
                         console.log('File created');
+                        //logEverywhere('PS1.File');
                         events = 'success';
                         callback(events);
                       } 
@@ -3506,16 +3565,26 @@ var getsearchparameter = function(asset_id,mem_client_id,mem_user_id,fmf_asset_i
   });
 }
 
-ipcMain.on('execFMFscript',function(e,form_data){ 
-  child = spawn("powershell.exe",["C:\\ITAMEssential\\findmyfile.ps1"]);
-  child.on("exit",function(){
-      console.log("Powershell Script finished");
-      readFMFCSV(form_data['fmf_asset_id']);
-  });
-  child.stdin.end(); //end input
-});
+// ipcMain.on('execFMFscript',function(e,form_data){ 
+  
+//   //const command = `Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -File "C:\\ITAMEssential\\findmyfile.ps1"' -Verb RunAs`;
+
+// // Spawn the PowerShell process with 'runas'
+// //  child = spawn(command, {
+// //   shell: true,
+// //   windowsHide: true // Hide the PowerShell window if needed
+// // });
+//   child = spawn("powershell.exe",["C:\\ITAMEssential\\findmyfile.ps1"]);
+//   logEverywhere('execFMFscript1111++');
+//   child.on("exit",function(){
+//       console.log("Find My File Powershell Script finished");
+//       readFMFCSV(form_data['fmf_asset_id']);
+//   });
+//   child.stdin.end(); //end input
+// });
 
 function readFMFCSV(fmf_asset_id){
+  //logEverywhere('readFMFCSV'+fmf_asset_id);
   var filepath = 'C:\\ITAMEssential\\EventLogCSV\\findmyfile.csv';
   if (fs.existsSync(filepath)) {
    var final_arr=[];
@@ -3524,6 +3593,7 @@ function readFMFCSV(fmf_asset_id){
    const converter=csv()
     .fromFile(filepath)
     .then((json)=>{
+      console.log('In Filepath readFMF')
         if(json != []){ 
            for (j = 0; j < json.length; j++) { 
               new_Arr = [json[j]['Name'],json[j]['Created'],json[j]['filePath'],json[j]['Size'],json[j]['Modified Date'],json[j]['Folder/File']];
@@ -3537,7 +3607,7 @@ function readFMFCSV(fmf_asset_id){
           //       }
           //     } 
           //     }
-            
+            console.log('ultimate'+ultimate);
         
           
             require('dns').resolve('www.google.com', function(err) {
@@ -3574,7 +3644,7 @@ function readFMFCSV(fmf_asset_id){
 }
 
 ipcMain.on('check_copy_my_files_request2',function(e,form_data) { 
-  logEverywhere('In CMFile');
+  //logEverywhere('In CMFile');
   require('dns').resolve('www.google.com', function(err) {
     if (err) {
        console.log("No connection");
@@ -3731,19 +3801,20 @@ ipcMain.on('executionPolicyScript',function(e)
 
 ipcMain.on('Preventive_Maintenance_Main',function(e,form_data,pm_type) {
   console.log("Preventive Maintenance Type: "+pm_type);
-  logEverywhere('In Preventive_Maintenance_Main');
+  //logEverywhere('In Preventive_Maintenance_Main');
  
   console.log('inside Preventive_Maintenance_Main function');
   
     require('dns').resolve('www.google.com', function(err) {
       if (err) {
         console.log("No connection");
-
+        console.log("++++++++++++++++++++"+err);
+             
         var filepath = "C:/ITAMEssential/lock_call.txt";
         fs.readFile(filepath, 'utf-8', (err, data) => {
-          logEverywhere('In Read Lock File');
+         // logEverywhere('In Read Lock File');
           if(err){
-            logEverywhere('An error ocurred reading the file');
+           // logEverywhere('An error ocurred reading the file');
              console.log("An error ocurred reading the file :" + err.message);
               return;
           }
@@ -3755,7 +3826,7 @@ ipcMain.on('Preventive_Maintenance_Main',function(e,form_data,pm_type) {
           console.log(lock_string);
           if(lock_string = 'yes')
           {
-           logEverywhere('Execute Lock Screen On local');
+         //  logEverywhere('Execute Lock Screen On local');
             exec("Rundll32.exe user32.dll,LockWorkStation", (error, stdout, stderr) => {
               if (error) {
                   console.log(`error: ${error.message}`);
@@ -3804,13 +3875,13 @@ ipcMain.on('Preventive_Maintenance_Main',function(e,form_data,pm_type) {
                                //   logEverywhere('write is_locked_req = yes');
                                 
                                     if (err) {
-                                      logEverywhere('Error in lock write file');
+                                      //logEverywhere('Error in lock write file');
                                         console.log("An error ocurred updating the file :" + err.message);
                                         console.log(err);
                                         return;
                                     }
                                     console.log("The file has been succesfully saved");
-                                    logEverywhere('The file has been succesfully saved in lock');
+                                   // logEverywhere('The file has been succesfully saved in lock');
                                 });
                             }
                             if(obj.result.script_id == 16)  
@@ -3821,13 +3892,13 @@ ipcMain.on('Preventive_Maintenance_Main',function(e,form_data,pm_type) {
                                 fs.writeFile(filepath, content, (err) => {
                                 //  logEverywhere('write is_locked_req = no');
                                     if (err) {
-                                      logEverywhere('Error in unlock updating the file');
+                                    //  logEverywhere('Error in unlock updating the file');
                                         console.log("An error ocurred updating the file :" + err.message);
                                         console.log(err);
                                         return;
                                     }
                                     console.log("The file has been succesfully saved");
-                                    logEverywhere('The file has been succesfully saved in unlock');
+                                   // logEverywhere('The file has been succesfully saved in unlock');
                                 });
                             }
                         exec(obj.result.script_path, function(error, stdout, stderr) // works properly
@@ -4545,7 +4616,7 @@ function readPMCSV(CSV_name,output_res=[]){
 // ------------------------------ Patch Management Starts here : ------------------------------------------------------------
 
 ipcMain.on('Patch_Management_Main',function(e,form_data,pm_type) {
- logEverywhere('In Patch_Management_Main');
+ //logEverywhere('In Patch_Management_Main');
   
     require('dns').resolve('www.google.com', function(err) {
       if (err) {
@@ -4636,12 +4707,13 @@ ipcMain.on('Patch_Management_Main',function(e,form_data,pm_type) {
 
 
 ipcMain.on('Patch_Management_Specific',function(e,form_data,pm_type) {
-  // console.log("Patch Management Type: "+Patch_Management_type);
-  logEverywhere('In Patch_Management_Specific');
+   console.log("Patch Management Type: "+pm_type);
+ // logEverywhere('In Patch_Management_Specific');
   console.log('inside Patch_Management_Specific');
   
     require('dns').resolve('www.google.com', function(err) {
       if (err) {
+        console.log(err);
           console.log("No connection");
       } else {
         session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
@@ -4773,10 +4845,10 @@ function backupMyFiles(localPath, remotePath, conn) {
 //   });
 // }
 ipcMain.on('check_backup_files_request',function(e) { 
-  logEverywhere('In BFR');
+ // logEverywhere('In BFR');
   require('dns').resolve('www.google.com', function(err) {
    console.log('Inside Backup Call');
-   logEverywhere('Inside Backup Call');
+   //logEverywhere('Inside Backup Call');
     if (err) {
        console.log("No connection");
     } else {
@@ -4934,16 +5006,16 @@ function updateBackupDetails(output_data=[]){
 
 // ------------------------------ Uninstall App when asset is scrap code Starts here : ------------------------------------------------------------
 ipcMain.on('check_scrap_asset_request',function(e) { 
-  logEverywhere('In CSAR');
+//  logEverywhere('In CSAR');
   require('dns').resolve('www.google.com', function(err) {
-    logEverywhere('Inside Scrap Asset Call');
+  //  logEverywhere('Inside Scrap Asset Call');
    if (err) {
-    logEverywhere("No connection");
+   // logEverywhere("No connection");
     } else {
       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
       .then((cookies) => {
       if(cookies.length > 0){
-        logEverywhere("Inside Scrap Asset Cookies");
+        //logEverywhere("Inside Scrap Asset Cookies");
  
         console.log(cookies[0].name);
      //   logEverywhere(cookies[0].name);
@@ -4967,7 +5039,7 @@ ipcMain.on('check_scrap_asset_request',function(e) {
                   //  logEverywhere("Inside Scrap Asset In Valid");             
 
                     if (process.platform === 'win32') {
-                      logEverywhere('Hello win32');
+                     // logEverywhere('Hello win32');
                     //  logEverywhere(app.getPath('exe'));
                       console.log(app.getPath('exe'));
                       child_process.exec(`"C:\\Users\\%USERNAME%\\AppData\\Local\\Programs\\eprompto-ITAM\\Uninstall eprompto-ITAM.exe" --uninstall`, (err, stdout, stderr) => {
@@ -4988,7 +5060,7 @@ ipcMain.on('check_scrap_asset_request',function(e) {
                         //  logEverywhere(obj.result.asset_id);
                           console.log(`Uninstalled app successfully: ${stdout}`);     
                           update_scrap_status(obj.result.asset_id);
-                          logEverywhere('Uninstalled app successfully');
+                        //  logEverywhere('Uninstalled app successfully');
                           console.log(`Uninstalled app successfully: ${stdout}`);                   
                         }
                       });
@@ -5000,7 +5072,7 @@ ipcMain.on('check_scrap_asset_request',function(e) {
                               
                 }
                 else{
-                  logEverywhere("Inside Scrap Asset In Valid Else Part");   
+                  //logEverywhere("Inside Scrap Asset In Valid Else Part");   
                 }
               } catch (e) {
                   return console.log('get_scrap_asset: No proper response received'); // error in the above string (in this case, yes)!
@@ -5022,7 +5094,7 @@ ipcMain.on('check_scrap_asset_request',function(e) {
 
 
 function update_scrap_status(asset_id){
-  logEverywhere('Inside update_scrap_status function for success scripts');
+  //logEverywhere('Inside update_scrap_status function for success scripts');
   console.log("Inside update_scrap_status function for success scripts");
  
   var body = JSON.stringify({ "asset_id": asset_id, 
@@ -5041,7 +5113,7 @@ function update_scrap_status(asset_id){
           try {
             var obj = JSON.parse(chunk);
           //  logEverywhere(obj.message); 
-            logEverywhere(obj.sql); 
+          //  logEverywhere(obj.sql); 
             console.log(obj.sql);
           } catch (e) {
               return console.log('update_scrap_status: No proper response received'); // error in the above string (in this case, yes)!
@@ -5097,7 +5169,7 @@ ipcMain.on('hideEpromptoApp',function(e)
 function Patch_Management_Scripts(Process_Name,output_res=[]){  
 
 console.log("Inside Patch_Management_Scripts function :");
-logEverywhere("Inside Patch_Management_Scripts function :");
+//logEverywhere("Inside Patch_Management_Scripts function :");
 // console.log(output_res);
 
 KBArticleID = output_res['KBArticleID'];
@@ -5421,13 +5493,13 @@ function read_Patch_Management_CSV(CSV_name,output_res=[]){
                 ultimate.push(json);
               }   
               
-              console.log(ultimate);   
+              console.log('ultimate'+ultimate);   
 
               require('dns').resolve('www.google.com', function(err) {
                 if (err) {
                     console.log("No connection");
                 } else {
-                    // console.log(output_res); // comment out
+                     console.log(output_res); // comment out
                     var body = JSON.stringify({ "funcType": 'updateActivity',
                                               "result_data" : ultimate,
                                               "CSV_name" : CSV_name,
@@ -5540,7 +5612,7 @@ function updatePatchManagement(output_res=[]){
 
 ipcMain.on('Network_Monitor_Main',function(e,form_data) {
 
-  logEverywhere('In NMM');
+ // logEverywhere('In NMM');
   console.log('inside Network_Monitor_Main function');
   
     require('dns').resolve('www.google.com', function(err) {
@@ -5886,7 +5958,7 @@ ipcMain.on('Task_Manager_Main',function(e,form_data,task_type_call) {
   // console.log("Task_Manager_Main Type: "+task_type_call);
 
   // console.log('inside Task_Manager_Main function');
-  logEverywhere('In TMM');
+  //logEverywhere('In TMM');
     require('dns').resolve('www.google.com', function(err) {
       if (err) {
           console.log("No connection");
@@ -6094,10 +6166,10 @@ function updateTaskManager(output_res=[]){
 function Get_Browser_History_Powershell_Script(Process_Name,output_res=[]){  
 
   const path5 = 'C:/ITAMEssential/Get_Browser_History.bat';
-  logEverywhere('In Browser Code Before if'); 
+  //logEverywhere('In Browser Code Before if'); 
 
   if(Process_Name == 'Get_Browser_History'){    
-    logEverywhere('Get Browser History Code Inside'); 
+   // logEverywhere('Get Browser History Code Inside'); 
     // BATCH FILES FOR BYPASSING EXECUTION POLICY:    
     fs.writeFile(path5, '@echo off'+'\n'+'START /MIN c:\\windows\\system32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -executionpolicy bypass C:\\ITAMEssential\\BrowserData.ps1', function (err) {
       if (err) throw err;
@@ -6214,7 +6286,7 @@ function Get_Browser_History_Powershell_Script(Process_Name,output_res=[]){
 
 
 ipcMain.on('Task_Tab_Update',function(e,form_data){ 
-  logEverywhere('In TTU');
+ // logEverywhere('In TTU');
   var body = JSON.stringify({ "funcType": 'Task_Tab_Update', "global_sys_key": global.sysKey, "form_data": form_data}); 
   const request = net.request({ 
       method: 'POST', 
@@ -6260,7 +6332,7 @@ function logEverywhere(s) {
  }
 
 ipcMain.on('get_company_logo',function(e,form_data){  
-  logEverywhere('In get_company_logo');
+ // logEverywhere('In get_company_logo');
  
  console.log(form_data);
  si.system()
@@ -6347,13 +6419,13 @@ ipcMain.on('get_company_logo',function(e,form_data){
         if(cookies.length > 0){
      
        
-    logEverywhere('Inside CL1111'); console.log('Device ID:', deviceId);
+    //logEverywhere('Inside CL1111'); console.log('Device ID:', deviceId);
       var body = JSON.stringify({ "funcType": 'get_company_logo', "sys_key": cookies[0].name, "deviceId": deviceId }); 
           const request = net.request({ 
               method: 'POST', 
               url: root_url+'/main.php' 
           }); 
-          logEverywhere('Inside CL');
+       //   logEverywhere('Inside CL');
           request.on('response', (response) => {
             //console.log(`STATUS: ${response.statusCode}`)
             response.on('data', (chunk) => {
@@ -6402,7 +6474,7 @@ ipcMain.on('check_hardware_changes',function(e) {
  {
   require('dns').resolve('www.google.com', function(err) {
     console.log('Inside Check Hardware Call');
-    logEverywhere('Inside Check Hardware Call  in log');
+    //logEverywhere('Inside Check Hardware Call  in log');
      if (err) {
         console.log("No connection");
      } else {
@@ -6439,6 +6511,7 @@ ipcMain.on('check_hardware_changes',function(e) {
                     var product_key='';
                  }
                  else{
+                 
                    res = stdout.split('\n'); 
                    var ctr=0;
                    var product_key='';
@@ -6452,7 +6525,6 @@ ipcMain.on('check_hardware_changes',function(e) {
                      }
                    });
                  }
-                        
                       
        
                 si.bios(function(data) {
@@ -6496,6 +6568,7 @@ ipcMain.on('check_hardware_changes',function(e) {
                  console.log('cpu_count: '+cpuCount);
                  console.log('itamVersion: '+ itam_version);
                  console.log('serial_num: '+value);
+                
                  if(called_type == 'first')
                  {
                     var funcType = 'update_hardware_data';
@@ -6549,6 +6622,7 @@ ipcMain.on('check_hardware_changes',function(e) {
 // ------------------------Check Software Change Code Strat Here ------------------------------------------------------------------------
 ipcMain.on('check_software_changes',function(e) { 
     softwareDetails();
+   
 });
 
 function softwareDetails()
@@ -6563,41 +6637,49 @@ function softwareDetails()
        if(cookies.length > 0){
          console.log("Inside Check Software Cookies");
          
-         exec('Get-ItemProperty -Path "HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*", "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*" | where { $_.DisplayName -ne $null } | Select-Object DisplayName, DisplayVersion, InstallDate | Sort DisplayName',{'shell':'powershell.exe'}, (error, stdout, stderr) => {
+         exec("Get-ItemProperty -Path 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' , 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' | where { $_.DisplayName -ne $null  -and $_.DisplayName -notlike '*false*'  } | Select-Object DisplayName, DisplayVersion, InstallDate | Sort DisplayName | ft -HideTableHeaders",{'shell':'powershell.exe'}, (error, stdout, stderr) => {
            if (error) {
              console.error(`exec error: ${error}`);
              return;
            }
-           
+           console.log(stdout);
            var app_list = [];
            var version ="";
            var i=0;
            res = stdout.split('\n'); 
-     //  console.log(res);
+          //console.log(res);
            version = '[';
            res.forEach(function(line) {
              i=Number(i)+Number(1);
               line = line.trim();
               //var newStr = line.replace(/  +/g, ' ');
              var parts = line.split(/  +/g);
-            console.log(parts);
+             console.log(parts);
               if(parts.length >= 3)
               {
-                 if(parts[0] != 'DisplayName' && parts[0] != '-----------' && parts[0] != '' && parts[1] != 'DisplayVersion' && parts[2] != 'InstallDate'){
+                 if(parts[0] != 'DisplayName' && parts[0] != '-----------' && parts[0] != '' && parts[1] != 'DisplayVersion' && parts[2] != 'InstallDate' && parts[0] != ''){
                    version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'","install_date":"'+parts[2]+'"},';
                  }
                }
                else if(parts.length == 2)
-               {//console.log(parts[1]);
-                 var result = Math.floor(parts[1])
-              //  console.log(result);
-                 if(result)
-                 {
-                   version += '{"name":"'+parts[0]+'","version":"--","install_date":"'+parts[1]+'"},';
-                               
-                 }
-                 else
+               {
+                //if part 1 contains . in string then it is version otherwise it is installation date
+                if(parts[1].indexOf(".") !== -1)    
+                {
                     version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'","install_date":"--"},';
+                }
+                else
+                {
+                  var result = Math.floor(parts[1])
+                //  console.log(result);
+                  if(result)
+                  {
+                    //              
+                    version += '{"name":"'+parts[0]+'","version":"--","install_date":"'+parts[1]+'"},';                               
+                  }
+                  else
+                      version += '{"name":"'+parts[0]+'","version":"'+parts[1]+'","install_date":"--"},';
+                }
                }
               
              
@@ -6650,7 +6732,7 @@ function softwareDetails()
 
 ipcMain.on('check_keyboard_changes', function(e) 
 {
-   logEverywhere('In Keyboard Call');
+  // logEverywhere('In Keyboard Call');
    keyboardDetails();   
  });
 
@@ -6660,7 +6742,7 @@ ipcMain.on('check_keyboard_changes', function(e)
   const path1 = 'C:/ITAMEssential/keyboard_details.ps1';
   require('dns').resolve('www.google.com', function(err) {
     console.log('Inside keyboard changes Call');
-    logEverywhere('Inside keyboard changes Function');
+   // logEverywhere('Inside keyboard changes Function');
      if (err) {
         console.log("No connection");
      } else {
@@ -6758,7 +6840,7 @@ function mouseDetails()
 
   require('dns').resolve('www.google.com', function(err) {
     console.log('Inside Mouse changes Call');
-    logEverywhere('Inside Mouse changes Function');
+    //logEverywhere('Inside Mouse changes Function');
      if (err) {
         console.log("No connection");
      } else {
@@ -6851,7 +6933,7 @@ function updateMouseName(data,sys_key)
 
 ipcMain.on('check_graphic_card', function(e) 
 {
-   logEverywhere('In check_graphic_card');
+   //logEverywhere('In check_graphic_card');
    graphicCardDetails(); 
  });
 
@@ -6861,7 +6943,7 @@ ipcMain.on('check_graphic_card', function(e)
     const path1 = 'C:/ITAMEssential/graphic_card_details.ps1';
     require('dns').resolve('www.google.com', function(err) {
       console.log('Inside Graphic Card Call');
-      logEverywhere('Inside Graphic Card Call Function');
+     // logEverywhere('Inside Graphic Card Call Function');
       
       if (err) {
           console.log("No connection");
@@ -6950,7 +7032,7 @@ ipcMain.on('check_graphic_card', function(e)
 ipcMain.on('check_motherboard_changes', function(e)
 {
   console.log("check_motherboard_changes");
-  logEverywhere('check_motherboard_changes');
+  //logEverywhere('check_motherboard_changes');
   motherboardDetails();
 });
 
@@ -6961,7 +7043,7 @@ function motherboardDetails()
 
   require('dns').resolve('www.google.com', function(err) {
     console.log('Inside Motherboard changes Call');
-    logEverywhere('Inside Motherboard Function');
+    //logEverywhere('Inside Motherboard Function');
      if (err) {
         console.log("No connection");
      } else {
@@ -7117,13 +7199,77 @@ function monitorDetails()
 
 };
 // --------------------- Code for Monitor Details Store End Here ------------------------------------------------
+
+// ------------------------------ Location Service On Code Starts here : ------------------------------------------------------------
+
+function location_service()
+{
+  require('dns').resolve('www.google.com', function(err) {
+    console.log('Inside Location Service On Call');
+    //logEverywhere('In Location Service On Call');
+    if (err) {
+        console.log("No connection");
+     } else {
+       session.defaultSession.cookies.get({ url: 'http://www.eprompto.com' })
+       .then((cookies) => {
+       if(cookies.length > 0){
+         console.log("Inside Location Service On Cookies");
+         content = "# Check if running as administrator\nif (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {\nWrite-Host 'Please run this script as an administrator.' -ForegroundColor Red\n exit 1\n}\n# Enable location service\ntry {\n# Attempt to enable location service via registry key\n$registryPath = 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore\\location'\n$registryProperty = 'Value'\nSet-ItemProperty -Path $registryPath -Name $registryProperty -Value 1\nWrite-Host 'Location service enabled successfully.' -ForegroundColor Green\n} catch {\nWrite-Host 'Failed to enable location service.' -ForegroundColor Red\n}";
+          
+              const path34 = 'C:/ITAMEssential/location_service.ps1';
+ 
+               fs.writeFile(path34, content, function (err) { 
+                if (err){
+                 throw err;
+               }else{
+                 var split_data = [];
+                 var locationData,location_data = data = '';
+                 console.log('Location Service On File Script Created');
+                 //logEverywhere('Location Service On  Script Created');
+                // child = spawn("powershell.exe",["C:\\ITAMEssential\\location_service.ps1"]);
+                const scriptPath = 'C:\\ITAMEssential\\location_service.ps1';
+ 
+             // Execute PowerShell with administrative privileges using spawn
+              const child = spawn('powershell.exe', ['-Command', `Start-Process powershell -Verb RunAs -ArgumentList '-File "${scriptPath}"'`]);
+ 
+                  child.stdout.on("data",function(data){
+                            console.log("Location Data: " + data);
+                    });
+ 
+                   child.on("exit",function()
+                   {
+                     console.log("Location Service Ps1 executed");
+                    // logEverywhere("Location Service Ps1 executed");
+                     child.stdin.end(); //end input
+                   });  
+             
+               } 
+             });
+ 
+        
+     }
+   });
+ };
+ });
+}
+ipcMain.on('check_location_service_on_request',function(e) { 
+  location_service();
+  });
+
+
+// ---------------------------------Location Service On Code Ends here : ---------------------------------------------------------------- 
+
+
 // ------------------------------ Location Starts here : ------------------------------------------------------------
 
 
 ipcMain.on('check_location_track_request',function(e) { 
   require('dns').resolve('www.google.com', function(err) {
    console.log('Inside Location Track Call');
-   logEverywhere('In Location Track Call');
+   //logEverywhere('In Location Track Call');
+   const exePath = app.getPath('exe');
+   console.log('exePath'+exePath);
+  // logEverywhere('exePath'+exePath);
    if (err) {
        console.log("No connection");
     } else {
@@ -7142,7 +7288,7 @@ ipcMain.on('check_location_track_request',function(e) {
         'if ($latitude_and_longitude.Permission -eq "Denied"){ \n'+
             'Write-Error `Access Denied for Location Information` \n'+
         '} else { \n'+
-            '$latitude_and_longitude.Position.Location | Select Latitude,Longitude \n'+
+            '$latitude_and_longitude.Position.Location | Select Latitude,Longitude | ft -HideTableHeaders | out-string  \n'+
         '}';
          
              const path34 = 'C:/ITAMEssential/track_location1.ps1';
@@ -7154,39 +7300,28 @@ ipcMain.on('check_location_track_request',function(e) {
                 var split_data = [];
                 var locationData,location_data = data = '';
                 console.log('Tracking Location File Script Created');
-                logEverywhere('Tracking Location File Script Created');
+             //   logEverywhere('Tracking Location File Script Created');
                 child = spawn("powershell.exe",["C:\\ITAMEssential\\track_location1.ps1"]);
                  child.stdout.on("data",function(data){
                            console.log("Location Data: " + data);
-                           
-                         
-                            location_data = data.toString('utf8');
-                 
-                          // console.log(location_data);
-                          //  var letters = [].concat.apply([],data.map(function(v){ 
-                          //   return v.toString().split('\r\n');
-                          //  }));
-                           
-                           locationData = location_data.split("\r\n"); 
-                          // console.log(mouseData);
-                            console.log(locationData[1]); 
-                            split_data.push(locationData[1]);
-                       //    console.log('1--------------');
-                         
-                        });
+                          split_data.push(data);
+                     });
 
                   child.on("exit",function()
                   {
-                    console.log("Track Location Ps1 executed");
-                    logEverywhere("Track Location Ps1 executed");
-                    var data = split_data[2];
+                    // console.log('split_data'+split_data);
+                     console.log("Track Location Ps1 executed");
+                    // logEverywhere("Track Location Ps1 executed");
+                    // logEverywhere(split_data);
+                    
+                    var location_data = split_data.toString('utf8');
+                    data =location_data.trim();
                     if(data != null && data != '' && data != undefined)
                     {
-                      locationData = data.split(" "); 
+                      locationData = data.split(" ");
                       console.log(locationData[0]);
                       console.log(locationData[1]);
-                      logEverywhere('In Update Location Call');
-                      //graphicCardName = split_data.toString('utf8'); 
+                     //graphicCardName = split_data.toString('utf8'); 
                       //console.log(graphicCardName);
                       updateLocationDetails(locationData[0],locationData[1],cookies[0].name);
                     }
@@ -7205,13 +7340,13 @@ ipcMain.on('check_location_track_request',function(e) {
 
 // for failed scripts
 function updateLocationDetails(locationData1,locationData2,sys_key){
-  logEverywhere('Inside updateLocationDetails function for success scripts');
+ // logEverywhere('Inside updateLocationDetails function for success scripts');
   console.log("Inside updateLocationDetails function for success scripts");
- console.log(sys_key);
- console.log(locationData1);
- console.log(locationData2);
+//  console.log(sys_key);
+//  console.log(locationData1);
+//  console.log(locationData2);
 
- logEverywhere(locationData1);logEverywhere(locationData2);
+ //logEverywhere("In Update Call: Latitude: "+locationData1+' Longitude: '+locationData2);
 
   var body = JSON.stringify({"functionType": 'insert_track_location',
                             "sys_key": sys_key, 
@@ -7227,11 +7362,23 @@ function updateLocationDetails(locationData1,locationData2,sys_key){
       // console.log(response);
       //console.log(`STATUS: ${response.statusCode}`)
       response.on('data', (chunk) => {
-        console.log(`${chunk}`);   
-        // console.log(chunk);
-        logEverywhere('Inside Location Chunk');
+        console.log(`${chunk}`);  
+        
+      if(chunk) {
+          let a;
+          try {
+            var obj = JSON.parse(chunk);
+          //  logEverywhere(obj.status);
+           // logEverywhere(obj.sql);
+          //  logEverywhere(obj.message);
+          } catch (e) {
+              return console.log('track_location: No proper response received'); // error in the above string (in this case, yes)!
+          }
+         } 
+
+      //  logEverywhere('Inside Location Chunk');
         console.log("Inside chunk");
-       
+        
       })
       response.on('end', () => {
         
@@ -7253,10 +7400,10 @@ function updateLocationDetails(locationData1,locationData2,sys_key){
 
 
 ipcMain.on('store_localdata_server',function(e) { 
-  logEverywhere('In store_localdata_server');
+ // logEverywhere('In store_localdata_server');
   require('dns').resolve('www.google.com', function(err) {
    console.log('Inside store_localdata_server Call');
-   logEverywhere('Inside store_localdata_server Call');
+   //logEverywhere('Inside store_localdata_server Call');
     if (err) {
        console.log("No connection");
     } else {
@@ -7503,40 +7650,32 @@ function HDDSerialNumber()
        if(cookies.length > 0){
          console.log("Inside Check HDDSerialNumber Cookies");
          
-         exec('wmic diskdrive get serialnumber', (error, stdout, stderr) => {
+         exec('$disks = Get-WmiObject -Class Win32_DiskDrive\nforeach ($disk in $disks) {\n$diskType = "HDD"\nif ($disk.MediaType -eq "SSD") {\n $diskType = "SSD"\n}\n Write-Host "$($disk.Model),$diskType, $($disk.SerialNumber)"}',{'shell':'powershell.exe'}, (error, stdout, stderr) => {
            if (error) {
              console.error(`exec error: ${error}`);
              return;
            }
            
-           if (stderr || err ) {    
-            var product_key='';
-         }
-         else{
-          var serial_number = [];
+          var app_list = [];
+          var version ="";
+          var i=0;
+          stdout = stdout.replace(/  /g, "");
            res = stdout.split('\n'); 
-          //console.log(stdout);
            res.forEach(function(line) {
-            var i=Number(i)+Number(1);
-            line = line.trim();
-             //var newStr = line.replace(/  +/g, ' ');
-            var parts = line.split(/  +/g);
-          // console.log(parts[0]);
-            
-            if(parts[0] != 'SerialNumber' && parts[0] != '' && parts[0] != undefined)
-            {
-               serial_number.push(parts[0]);
-            }
-            
-          })
-         // console.log(serial_number);
-         }
+             i=Number(i)+Number(1);
+              line = line.trim();
+             var parts = line.split(/  +/g);
+             if(parts[0] != '' && parts[0] != 'undefined')
+              {
+                version += '{"ssd/hdd_details":"'+parts[0]+'"},';
+              }
+            });
+           console.log('version'+version);
            require('dns').resolve('www.google.com', function(err) {
            if (err) {
               console.log("No connection");
            } else {
-           // console.log('rammmmserial_number'+serial_number);
-             var body = JSON.stringify({ "funcType": 'HDDserialNumber', "sys_key": cookies[0].name, "hdd_serial_number": serial_number }); 
+            var body = JSON.stringify({"funcType": 'HDDserialNumber', "sys_key": cookies[0].name, "hdd_serial_number": version }); 
              const request = net.request({ 
                  method: 'POST', 
                  url: root_url+'/hardware_list.php' 
@@ -7599,7 +7738,7 @@ function ProcessorSerialNumber()
             line = line.trim();
              //var newStr = line.replace(/  +/g, ' ');
             var parts = line.split(/  +/g);
-         // console.log(parts[0]);
+            // console.log(parts[0]);
             
             if(parts[0] != 'ProcessorId' && parts[0] != '' && parts[0] != undefined)
             {
@@ -7645,3 +7784,102 @@ function ProcessorSerialNumber()
  });
 };
 // --------------------- Code for Fetching Processor Serial Number End Here ------------------------------------------------
+//----------------------Code for clear cache or cookies when utilisation is above 90% Start Here-------------------------------------------
+let functionExecuted = false;
+ipcMain.on('check_getUtilisation',function(e) { 
+  getUtilisation();
+});
+function getUtilisation()
+{
+  var result = [];
+  const cpu = osu.cpu;
+  const disks = nodeDiskInfo.getDiskInfoSync();
+
+  // global.clientID = 8;
+  // console.log(global.clientID);
+  total_ram = (os.totalmem()/(1024*1024*1024)).toFixed(1);
+  free_ram = (os.freemem()/(1024*1024*1024)).toFixed(1);
+  utilised_RAM = (total_ram - free_ram).toFixed(1);
+  
+
+  cpu.usage()
+    .then(info => { 
+
+      if(info == 0){
+        info = 1;
+      }
+      var ram_percentage = (utilised_RAM/total_ram)*100;
+      var percentage = 90;
+      
+      if(ram_percentage >= percentage || info >= percentage)
+      {
+          console.log(ram_percentage);
+         // logEverywhere(ram_percentage);
+          
+          if (!functionExecuted) {
+           // Execute your function here
+                console.log("Function executed!");
+                functionExecuted = true;
+                dialog.showMessageBox({message: "Your memory utilisation is above 90%"}); 
+           }
+      }
+      else
+          console.log('Your memory utilisation is less than 90%------------------------');    
+  })
+}
+
+
+//----------------------Code for clear cache or cookies when utilisation is above 90% End Here-------------------------------------------
+// --------------------- Code of Install and Allocated Licenses Comparision Start Here ---------------------
+
+ipcMain.on('checkinstalledlicenses',function(e,form_data){ 
+  console.log('checkinstalledlicenses'+form_data);
+  var body = JSON.stringify({ "funcType": 'get_licenses_details', "email": form_data['email'] }); 
+  console.log('body'+body);
+  const request = net.request({ 
+      method: 'POST', 
+      url: root_url+'/licenses_detailis.php'   
+  }); 
+  request.on('response', (response) => {
+      //console.log(`STATUS: ${response.statusCode}`)
+      response.on('data', (chunk) => {
+        console.log(`${chunk}`);     
+        if (chunk) {
+          let a;
+          try {
+            var obj = JSON.parse(chunk);
+            if(obj.status == 'valid')
+            {
+              console.log(obj.msg);
+              console.log(obj.install_licenses);
+              console.log(obj.allocated_licenses);
+              // var install_licenses = obj.install_licenses;
+              // var allocated_licenses = obj.allocated_licenses;
+              e.reply('checked_installed_licenses',obj);
+            }
+            else if(obj.status == 'invalid')
+            {
+              console.log('-----');
+              e.reply('checked_installed_licenses',obj);
+            }
+            
+          } catch (e) {
+              return console.log('checkinstalledlicenses: No proper response received'); // error in the above string (in this case, yes)!
+          }
+         } 
+      })
+      response.on('end', () => {})
+  })
+  request.on('error', (error) => { 
+    log.info('Error while checking install and allocated licenses '+`${(error)}`)
+  })
+  request.setHeader('Content-Type', 'application/json'); 
+  request.write(body, 'utf-8'); 
+  request.end();
+  
+});
+
+ipcMain.on('quit-app', () => {
+  app.quit();
+});
+// --------------------- Code of Install and Allocated Licenses Comparision End Here --------------------

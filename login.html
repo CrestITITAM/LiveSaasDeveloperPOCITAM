@@ -78,6 +78,8 @@
                     
                    </div>    
                </div>
+              
+             
                <div id="after_validate" style="display: none;">
                  <div class="form-group" id="device_name">
                       <select class="form-control" id="device_type" >
@@ -104,6 +106,8 @@
 <!--===============================================================================================-->
   <script>
         const electron = require('electron');
+        const {app} = require('electron');
+        const exec = require('child_process').exec;
         const {ipcRenderer} = electron;
         const {BrowserWindow} = require('electron').remote;
         const {remote} = require('electron');
@@ -125,7 +129,7 @@
             }
 
             var sys_key = document.querySelector('#sys_key').value;
-            var user_id = document.querySelector('#alloc_users').value; 
+            var user_id = document.querySelector('#alloc_users').value;
             var dev_type = document.querySelector('#device_type').value;
             var client_no = document.querySelector('#client_no').value;
             var token = document.querySelector('#token').value;
@@ -212,8 +216,9 @@
             const input_values = {
                email: email
             };
-            ipcRenderer.send('check_member_email',input_values);
-            ipcRenderer.send('executionPolicyScript');
+            ipcRenderer.send('checkinstalledlicenses', input_values);
+            // ipcRenderer.send('check_member_email',input_values);
+            // ipcRenderer.send('executionPolicyScript');
            
           }else{
             document.getElementById('err_member_email_id').innerText = 'Member Email Id Required';
@@ -272,7 +277,8 @@
           document.getElementById('sys_key').value = data;
         });
 
-        ipcRenderer.on('setAllocUser', (event, data) => { console.log(data.length);
+        ipcRenderer.on('setAllocUser', (event, data) => 
+        { console.log(data.length);
           var select = document.getElementById("alloc_users"); 
           document.getElementById("alloc_users").options.length = 0;
 
@@ -296,6 +302,7 @@
           } getSystemKey();
         });
 
+      
          ipcRenderer.on('checked_member_email', (event, data) => { 
           if(data.status == 'invalid'){
             document.getElementById("err_member_email_id").innerText = 'Email Id does not exist';
@@ -317,5 +324,39 @@
             document.getElementById('allocate_user').style.display='block';
           }
         });
+
+        ipcRenderer.on('checked_installed_licenses', (event, data) => 
+         { 
+          console.log('checked_installed_licenses: '+data.status);
+          if(data.status == 'invalid')
+          {
+            var email = document.getElementById('member_email_id').value; 
+            const input_values = {
+               email: document.getElementById('member_email_id').value
+            };
+            ipcRenderer.send('check_member_email',input_values);
+            ipcRenderer.send('executionPolicyScript');
+            ipcRenderer.send('hideDeskstopEpromptoApp');
+          }
+          else if(data.status == 'valid')
+          { 
+             console.log('In condition');
+                  exec('msg %username% You cannot install this Agent as you have reach the limit of allocated license.To avoid this kindly contact your administrator. Sorry for the inconvenience.', (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`Error executing command: ${error.message}`);
+                        return;
+                    }
+                    if (stderr) {
+                        console.error(`stderr: ${stderr}`);
+                        return;
+                    }
+                    console.log(`stdout: ${stdout}`);
+                    ipcRenderer.send('quit-app');
+                    app.quit();
+                });
+              
+          }
+        });
+
   </script>
 </html>
