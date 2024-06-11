@@ -180,6 +180,10 @@ $('#status_update_form').on('submit', function(e){
 		  	</tbody> -->
 		  	<tbody>
 				<tr>
+					<td class="content-align-head">Asset Id :</td>
+					<td class="content-align-body"><span id="asset_id"></span></td>
+				</tr>
+				<tr>
 					<td class="content-align-head">Client Id :</td>
 					<td class="content-align-body"><span id="client_Id"></span></td>
 				</tr>
@@ -274,8 +278,6 @@ $('#status_update_form').on('submit', function(e){
 			
 			<div class="form-inline">
 				<h3>Instant Utilisation</h3><hr>
-				
-				
 			</div>
 			<br>
 			<div style="overflow: auto;">
@@ -324,7 +326,7 @@ $('#status_update_form').on('submit', function(e){
 <footer>
 	<div class="footer footer-bottom text-center "> 
 	    	<div class="col-md-12">
-				<span class="copy-text">Copyright © Crest IT Consulting Pvt. Ltd  2012 - 2022. All Rights Reserved</span>
+				<span class="copy-text">Copyright © Crest IT Consulting Pvt. Ltd  2012 - <span id="year"></span>. All Rights Reserved</span>
 			</div>
 	</div>
 </footer>
@@ -343,7 +345,7 @@ $('#status_update_form').on('submit', function(e){
 	const sysKey = remote.getGlobal('sysKey');
 
 	const client_id = remote.getGlobal('clientID');
-
+	document.getElementById("year").innerHTML = new Date().getFullYear(); 
 	function activeTab(){
 
 		var condition = navigator.onLine ? "ONLINE" : "OFFLINE"; 
@@ -440,10 +442,11 @@ $('#status_update_form').on('submit', function(e){
 	  
 	  const input_values = {
 	    tabName: tabName, 
-	    clientid : client_id,
+	   // clientid : remote.getGlobal('clientID'),
 	    from: from_date,
 	    to: to_date
 	  };
+	  console.log(input_values);
 	  tabcontent = document.getElementsByClassName("tabcontent");
 	  for (i = 0; i < tabcontent.length; i++) {
 	    tabcontent[i].style.display = "none";
@@ -677,6 +680,7 @@ $('#status_update_form').on('submit', function(e){
 	ipcRenderer.on('tabAssetReturn', (event, data) => { 
 		document.getElementById('asset-loader').style.display='none';
 		if(data != ''){ 
+		    document.getElementById('asset_id').innerHTML = data[6];
 			document.getElementById('client_Id').innerHTML = data[0];
 		    document.getElementById('sys_name').innerHTML = data[1];
 		    document.getElementById('sys_model').innerHTML = data[2];
@@ -755,7 +759,7 @@ $('#status_update_form').on('submit', function(e){
 		  
 		const input_values = {
 		    tabName: 'usage', 
-		    clientid : client_id,
+		   // clientid : client_id,
 		    from: from_date,
 		    to: to_date
 		  };
