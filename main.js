@@ -42,16 +42,16 @@ var format = require('date-fns/format');
 //Local Url
 
 // global.root_url = 'http://localhost/business_eprompto/itam_backend_end_user';
-// server_url = 'http://localhost/business_eprompto';
+//server_url = 'http://localhost/business_eprompto';
 
 //Business Url
 
-global.root_url = 'https://business.eprompto.com/itam_backend_end_user';
- server_url = 'https://business.eprompto.com';
+//global.root_url = 'https://business.eprompto.com/itam_backend_end_user';
+ //server_url = 'https://business.eprompto.com';
 
 //Developer Url
-//  global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
-//  server_url = 'https://developer.eprompto.com';
+  global.root_url = 'https://developer.eprompto.com/itam_backend_end_user';
+  server_url = 'https://developer.eprompto.com';
 
 let reqPath = path.join(app.getAppPath(), '../');
 const detail =  reqPath+"syskey.txt";
